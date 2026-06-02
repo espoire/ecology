@@ -101,10 +101,9 @@ export default class Species {
    * @param {number} energyDeficit
    * @return {number} deaths from energy deficit
    */
-  getDeathsFromEnergyDeficit(netEnergy, randomFn = Math.random) {
-    if (netEnergy >= 0) return 0; // No deficit, no deaths
+  getDeathsFromEnergyDeficit(energyDeficit, randomFn = Math.random) {
+    if (energyDeficit <= 0) return 0; // No deficit, no deaths
 
-    const energyDeficit = -netEnergy;
     const deathFraction = energyDeficit / this.#power / 4;
     return roundRandom(deathFraction, randomFn);
   }
@@ -131,13 +130,13 @@ export default class Species {
   }
 
   /**
-   * @param {string} foodType A forage type name
+   * @param {string} forageType A forage type name
    * @return {boolean} whether this species can eat that food
    */
-  canEat(foodType) {
-    const food = forageDefinitions[foodType];
+  canEat(forageType) {
+    const food = forageDefinitions[forageType];
 
-    if (!this.#diet.includes(foodType)) {
+    if (!this.#diet.includes(forageType)) {
       return false;
     }
 
@@ -149,11 +148,11 @@ export default class Species {
   }
 
   /**
-   * @param {string} foodType A forage type name
+   * @param {string} forageType A forage type name
    * @return {number} energy yield per unit of food, adjusted for any stat penalties
    */
-  getEnergyYield(foodType) {
-    const food = forageDefinitions[foodType];
+  getEnergyYield(forageType) {
+    const food = forageDefinitions[forageType];
     const baseEnergy = food.energy;
 
     let searchPenalty = 1;
@@ -162,5 +161,15 @@ export default class Species {
     }
 
     return baseEnergy / searchPenalty;
+  }
+
+  /**
+   * Returns a species parameter determining how a population of this species
+   * splits its food consumption bids between foods based on score.
+   * Higher pickyness means more skewed towards higher score foods.
+   * @returns {number} In the range (0 .. Infinity), where 1 means proportional to score, <1 means more even, and >1 means more skewed towards higher score foods.
+   */
+  getPickyness() {
+    return 1; // TODO
   }
 }

@@ -45,3 +45,38 @@ export function filterObject(obj, predicate) {
 
   return filtered;
 }
+
+/**
+ * @template T
+ * @param {Object<string, *>} obj
+ * @param {(key: string, value: *, obj: Object<string, *>) => T | undefined} mapFn
+ * @returns {Object<string, T>} New object with keys from the original object and values from the map function, excluding any pairs where the map function returns undefined
+ */
+export function mapObjectValues(obj, mapFn, { inPlace = false } = {}) {
+  const mapped = inPlace ? obj : {};
+
+  for (const key in obj) {
+    const value = mapFn(key, obj[key], obj);
+    if (value !== undefined) mapped[key] = value;
+  }
+
+  return mapped;
+}
+
+/**
+ * @template T
+ * @param {string[]} arr
+ * @param {(key: string, index: number, array: string[]) => T | undefined} mapFn
+ * @returns {Object<string, T>} New object with keys from the array and values from the map function, excluding any pairs where the map function returns undefined
+ */
+export function mapArrayValuesToObject(arr, mapFn) {
+  const obj = {};
+
+  for (let i = 0; i < arr.length; i++) {
+    const key = arr[i];
+    const value = mapFn(arr[i], i, arr);
+    if (value !== undefined) obj[key] = value;
+  }
+
+  return obj;
+}

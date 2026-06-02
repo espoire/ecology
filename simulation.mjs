@@ -1,83 +1,43 @@
 import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
-import { formatLargeNumber, formatSmallNumber } from "./util/number.mjs";
-import { filterObject, normalizeObject } from "./util/object.mjs";
+import { clamp } from "./util/number.mjs";
+import { filterObject, mapObjectValues, normalizeObject } from "./util/object.mjs";
 import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
 
 /** @typedef {import("./classes/species.mjs").default} Species */
+/** @typedef {import("./classes/population.mjs").default} Population */
 
-export function runSim(environment, population, days = 10) {
-  spawnResources(environment, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
-
-  console.log('Initial population:');
-  for (const pop of population) {
-    let fat = pop.fat ?? 0;
-    if (isNaN(fat)) fat = 0;
-    const fatPercent = Math.round(fat * 100);
-    const fatText = fatPercent > 0 ? ` + ${fatPercent}% fat` : '';
-    const countText = formatLargeNumber(pop.count);
-    console.log(`- ${pop.species} (power ${formatSmallNumber(pop.species.power)}, appetite ${pop.species.appetite}): ${countText}${fatText}`);
-  }
-
-  console.log('Environment:');
-  console.log(`  Biome: ${environment.biome.name}`);
-  console.log('  Forage:');
-  for (const food in environment.food) {
-    const amount = environment.food[food];
-    if (amount > 0) {
-      console.log(`  - ${food}: ${amount.toFixed(0)}`);
-    }
-  }
-
-  console.log('---');
-
-  for (let day = 0; day < days; day++) {
-    simulateDay(environment, population);
-  }
-
-  console.log('Simulation complete.');
-
-  console.log();
-  console.log('Final food stocks:');
-  for (const food in environment.food) {
-    const amount = environment.food[food];
-    if (amount > 0) {
-      console.log(`- ${food}: ${amount.toFixed(0)}`);
-    }
-  }
-
-  console.log();
-  console.log('Final populations:');
-  const sortedPopulations = population.sort((a, b) => b.count * b.species.power - a.count * a.species.power);
-  for (const pop of sortedPopulations) {
-    if (pop.count === 0) {
-      console.log(`- ${pop.species}: extinct`);
-      continue;
-    }
-
-    let fat = pop.fat ?? 0;
-    if (isNaN(fat)) fat = 0;
-    const fatPercent = Math.round(fat * 100);
-    const fatText = fatPercent > 0 ? ` + ${fatPercent}% fat` : '';
-    const countText = formatLargeNumber(pop.count);
-    console.log(`- ${pop.species}: ${countText}${fatText} - total power ${formatLargeNumber(pop.count * pop.species.power)}`);
-  }
+/**
+ * @param {Object} env
+ * @param {Population[]} pops 
+ * @param {number} days 
+ */
+export function runSim(env, pops, days = 10) {
+  spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
+  logSimStart(env, pops);
+  for (let i = 0; i < days; i++) simulateDay(env, pops);
+  logSimEnd(env, pops);
 }
 
-function simulateDay(environment, populations) {
-  spawnResources(environment);
+/**
+ * @param {Object} env
+ * @param {Population[]} pops
+ */
+function simulateDay(env, pops) {
+  spawnResources(env);
 
   // Register demands from population
   const totalDemand = {
     food: {},
     water: {},
   };
-  const demands = [];
-  for (const pop of populations) {
-    const demand = getFoodDemands(environment.food, pop);
-    demands.push(demand);
 
+  /** @type {Object<string, number>[]} Where index corresponds to population index */
+  const demands = pops.map(pop => pop.getForageDemands(env.food));
+
+  // Sum total demand by food type across populations
+  for (const demand of demands) {
     for (const food in demand) {
       totalDemand.food[food] = (totalDemand.food[food] ?? 0) + demand[food];
     }
@@ -90,14 +50,22 @@ function simulateDay(environment, populations) {
   };
   for (const food in totalDemand.food) {
     if (totalDemand.food[food] == 0) continue;
-    satisfaction.food[food] = Math.min(1, environment.food[food] / totalDemand.food[food]);
+
+    // Satisfaction is the portion of demand that can be met with available resources
+    const availableRatio = env.food[food] / totalDemand.food[food];
+    satisfaction.food[food] = clamp(availableRatio, 0, 1);
   }
 
   // Assign actual amounts consumed to each population
   const actualConsumptionByPopulation = [];
   const totalConsumption = {};
-  for (let i = 0; i < populations.length; i++) {
-    const pop = populations[i];
+  for (let i = 0; i < pops.length; i++) {
+    const pop = pops[i];
+    if (pop.count === 0) {
+      actualConsumptionByPopulation.push({});
+      continue;
+    }
+
     const demand = demands[i];
     const consumption = {};
     for (const food in satisfaction.food) {
@@ -110,177 +78,37 @@ function simulateDay(environment, populations) {
     actualConsumptionByPopulation.push(consumption);
   }
 
-  // Update remaining resources
+  // Update remaining resources after consumption
   for (const food in totalConsumption) {
-    environment.food[food] -= totalConsumption[food];
+    env.food[food] -= totalConsumption[food];
   }
 
-  // Withdraw from fat, if deficit energy
-
-  // Compute energy/water gain/loss for each population
-  const netEnergyByPopulation = [];
-  for (let i = 0; i < populations.length; i++) {
-    const pop = populations[i];
-    const species = pop.species;
-    const demand = demands[i];
-    const consumption = actualConsumptionByPopulation[i];
-    
-    let netEnergy = 0;
-    let netWater = 0;
-
-    // Gain energy/water for foods consumed
-    for (const food in consumption) {
-      netEnergy += consumption[food] * species.getEnergyYield(food);
-      if (forageDefinitions[food].water) {
-        netWater += consumption[food] * forageDefinitions[food].water;
-      }
-    }
-
-    // Lose energy for basic hunger
-    netEnergy -= pop.species.getEnergyUpkeep() * pop.count;
-
-    if (netEnergy < 0 && Settings.log.energyDeficits) {
-      console.log(`Population ${pop.species} has energy deficit of ${-netEnergy.toFixed(1)}`);
-      console.log(`  Consumed:`);
-      for (const food in consumption) {
-        console.log(`    ${food}: ${consumption[food].toFixed(1)} (energy ${species.getEnergyYield(food)}, water ${forageDefinitions[food].water ?? 0})`);
-      }
-    }
-
-    netEnergyByPopulation.push(netEnergy);
-  }
-
-  // Update population counts based on satisfaction
+  // Process consumption for each population (update population counts & fat stores) and calculate deaths by population
   const deathsByPopulation = [];
-  for (let i = 0; i < populations.length; i++) {
-    const pop = populations[i];
-    /** @type {Species} */
-    const species = pop.species;
-    let netEnergy = netEnergyByPopulation[i];
+  for (let i = 0; i < pops.length; i++) {
+    const pop = pops[i];
+    if (pop.count === 0) continue;
 
-    if (netEnergy < 0) {
-      let fatUsed = 0;
-      if (species.canStoreFat()) {
-        // If any fat reserves, withdraw from fat to cover deficit
-        const fatFraction = pop.fat;
-        const fatPerMember = species.getFatCapacityPerMember();
-        const availableFatEnergy = fatFraction * fatPerMember * pop.count;
-  
-        if (availableFatEnergy >= -netEnergy) {
-          // Can cover entire deficit with fat
-          fatUsed = -netEnergy;
-        } else {
-          fatUsed = availableFatEnergy;
-        }
-  
-        pop.fat -= fatUsed / (fatPerMember * pop.count);
-        netEnergy += fatUsed;
-      }
+    const forageEaten = actualConsumptionByPopulation[i];
+    const { births, deaths, fatDelta, remainingEnergyDeficit } = pop.processConsumption(forageEaten);
+    if (pop.count <= 0 && Settings.log.extinctions) pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit);
 
-      // If still defecit, deaths proportional to energy deficit
-      let deaths = species.getDeathsFromEnergyDeficit(netEnergy);
-
-      if (isNaN(deaths)) {
-        console.log('Error: deaths is NaN');
-        console.log('species:', species);
-        console.log('netEnergy:', netEnergy);
-        console.log('species.power:', species.power);
-        deaths = 0;
-      }
-
-      if (deaths > pop.count) {
-        deaths = pop.count;
-
-        console.log(`${species} population has gone extinct.`);
-        console.log('netEnergy:', netEnergy);
-        console.log('species.power:', species.power);
-        console.log('Ate:', actualConsumptionByPopulation[i]);
-        console.log('Demanded:', demands[i]);
-        console.log('Energy from food:');
-        for (const food in actualConsumptionByPopulation[i]) {
-          console.log(`  ${actualConsumptionByPopulation[i][food]} ${food}: ${actualConsumptionByPopulation[i][food] * species.getEnergyYield(food)}`);
-        }
-        console.log('Energy spent on metabolism:', -species.getEnergyUpkeep() * pop.count);
-        console.log('Energy from fat used:', fatUsed);
-        console.log('Total net energy:', netEnergy);
-      }
-
-      pop.count -= deaths;
-      deathsByPopulation[i] = deaths;
-
-    } else if (netEnergy > 0) {
-      // Births proportional to energy surplus
-      const costPerBirth = species.getBirthEnergyCost();
-      let cap = Math.floor(pop.count * species.getFecundityMultiplier());
-      if (cap < 1) cap = 1; // Always allow at least 1 birth if sufficient energy
-      if (pop.count === 1) cap = 0; // If only 1 member of the population, cannot reproduce asexually, so no births regardless of energy surplus
-      let births = Math.min(cap, Math.floor(netEnergy / costPerBirth));
-
-      let birthsWithFatSpend = 0;
-      if (species.canStoreFat()) {
-        // If any fat reserves, maybe withdraw from fat to make births possible that wouldn't be with just food energy
-        const fatFraction = pop.fat;
-        const fatPerMember = species.getFatCapacityPerMember();
-        const availableFatEnergy = fatFraction * fatPerMember * pop.count;
-
-        const totalEnergy = netEnergy + availableFatEnergy;
-        birthsWithFatSpend = Math.min(cap, Math.floor(totalEnergy / costPerBirth));
-
-        if (birthsWithFatSpend > births) {
-          const additionalBirths = birthsWithFatSpend - births;
-          const additionalEnergyNeeded = additionalBirths * costPerBirth;
-          const fatEnergyToUse = Math.min(availableFatEnergy, additionalEnergyNeeded);
-          pop.fat -= fatEnergyToUse / (fatPerMember * pop.count);
-          netEnergy += fatEnergyToUse;
-          births = birthsWithFatSpend;
-        }
-      }
-
-      if (isNaN(births)) {
-        console.log('Error: births is NaN');
-        console.log('species:', species);
-        console.log('netEnergy:', netEnergy);
-        console.log('costPerBirth:', costPerBirth);
-        console.log('species.power:', species.power);
-        console.log('cap:', cap);
-        births = 0;
-      }
-
-      const energySpentOnBirths = births * costPerBirth;
-      pop.count += births;
-      netEnergy -= energySpentOnBirths;
-
-      // If any remaining unspent surplus, attempt to store to fat
-      if (species.canStoreFat()) {
-        const fatFraction = pop.fat;
-        const fatPerMember = species.getFatCapacityPerMember();
-        const availableFatStorage = (1 - fatFraction) * fatPerMember * pop.count;
-        const fatToStore = Math.min(availableFatStorage, netEnergy);
-        pop.fat += fatToStore / (fatPerMember * pop.count);
-        netEnergy -= fatToStore;
-      }
-
-      // Maybe log leftover netEnergy as wasted overconsumption or something?
-    }
+    if (deaths > 0) deathsByPopulation[i] = deaths;
   }
 
   // Add to carrion per deaths
   for (const i in deathsByPopulation) {
-    const species = populations[i].species;
-    const deaths = deathsByPopulation[i];
-
-    if (deaths > 0) {
-      const carrionAdded = deaths * species.getCarrionPerStarvationDeath();
-      environment.food[forage.carrion] += carrionAdded;
-    }
+    spawnCarrionForStarvationDeaths(env, pops[i].species, deathsByPopulation[i]);
   }
 
-  // Rot food supply
-  for (const food in environment.food) {
-    environment.food[food] *= 0.99; // Lose 1% of food to rot each day
-    environment.food[food] = Math.floor(environment.food[food]);
-    environment.food[food] = Math.max(0, environment.food[food]);
-  }
+  rotFoodSupply(env);
+}
+
+function spawnCarrionForStarvationDeaths(env, species, deaths) {
+  if (deaths <= 0) return;
+
+  const carrionAdded = deaths * species.getCarrionPerStarvationDeath();
+  env.food[forage.carrion] += carrionAdded;
 }
 
 const resourceMultiplier = 1000;
@@ -310,87 +138,54 @@ function spawnResources(environment, days = 1) {
   }
 }
 
+function rotFoodSupply(environment) {
+  mapObjectValues(environment.food, (_, amount) =>
+    Math.max(0, Math.floor(amount * 0.99)),
+  { inPlace: true });
+}
+
+function logSimStart(env, pops) {
+  console.log('Initial population:');
+  for (const pop of pops) pop.logState('- ');
+
+  console.log();
+  console.log('Environment:');
+  console.log(`  Biome: ${env.biome.name}`);
+  console.log('  Forage:');
+  logForageStocks(env, '  ');
+  
+  console.log();
+  console.log('---');
+  console.log();
+}
+
 /**
- * @param {Dictionary<string, number>} availableFoods
- * @param {{ species: Species, count: number }} population
+ * @param {object} env
+ * @param {Population[]} pops
  */
-function getFoodDemands(availableFoods, population) {
-  const species = population.species;
+function logSimEnd(env, pops) {
+  console.log();
+  console.log('Simulation complete.');
 
-  const demand = {};
-  const canEat = [];
+  console.log();
+  console.log('Final food stocks:');
+  logForageStocks(env);
 
-  for (const food in availableFoods) {
-    if (availableFoods[food] > 0 && species.canEat(food)) {
-      canEat.push(food);
+  console.log();
+  console.log('Final populations:');
+  const sortedPopulations = pops.sort(sortByTotalPower);
+  for (const pop of sortedPopulations) pop.logFinalState('- ');
+}
+
+function sortByTotalPower(a, b) {
+  return b.getTotalPower() - a.getTotalPower();
+}
+
+function logForageStocks(env, prefix = '') {
+  for (const forageType in env.food) {
+    const amount = env.food[forageType];
+    if (amount > 0) {
+      console.log(`${prefix}- ${forageType}: \t${amount.toFixed(0)}`);
     }
   }
-  const uncappedFoods = new Set(canEat);
-
-  const scores = {};
-  let totalScore = 0;
-  for (const food of canEat) {
-    const energyYield = species.getEnergyYield(food);
-    const waterYield = forageDefinitions[food].water ?? 0;
-
-    const score = energyYield + waterYield/10;
-    if (score <= 0) continue;
-
-    scores[food] = score;
-    totalScore += score;
-  }
-
-  const pickyness = 1; // Split bid between foods based on score. Higher pickyness means more skewed towards higher score foods.
-  const preferenceScores = {};
-  let secondTotal = 0;
-  for (const food of canEat) {
-    preferenceScores[food] = (scores[food] / totalScore) ** pickyness;
-  }
-
-  const normalizedScores = normalizeObject(preferenceScores);
-
-  const totalAppetite = species.appetite * population.count;
-  for (const food of canEat) {
-    const maxDigestable = totalAppetite / forageDefinitions[food].digestion; // Max amount they can eat based on digestion limits
-    demand[food] = normalizedScores[food] * maxDigestable;
-  }
-
-  for (const food in demand) {
-    if (demand[food] > availableFoods[food]) {
-      demand[food] = availableFoods[food];
-      uncappedFoods.delete(food);
-    }
-  }
-
-  let usedAppetite = 0;
-  for (const food in demand) {
-    usedAppetite += demand[food] * forageDefinitions[food].digestion;
-  }
-  let unusedAppetite = totalAppetite - usedAppetite;
-
-  while (unusedAppetite > 0 && uncappedFoods.size > 0) {
-    const filteredScores = filterObject(preferenceScores, (key) => uncappedFoods.has(key));
-    const normalizedScores = normalizeObject(filteredScores);
-
-    for (const food of uncappedFoods) {
-      const maxDigestable = unusedAppetite / forageDefinitions[food].digestion;
-      const additionalDemand = normalizedScores[food] * maxDigestable;
-      demand[food] += additionalDemand;
-    }
-
-    for (const food of uncappedFoods) {
-      if (demand[food] > availableFoods[food]) {
-        demand[food] = availableFoods[food];
-        uncappedFoods.delete(food);
-      }
-    }
-
-    let usedAppetite = 0;
-    for (const food in demand) {
-      usedAppetite += demand[food] * forageDefinitions[food].digestion;
-    }
-    unusedAppetite = totalAppetite - usedAppetite;
-  }
-
-  return demand;
 }

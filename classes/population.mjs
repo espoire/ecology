@@ -1,0 +1,351 @@
+/** @typedef {import('./species.mjs').default} Species */
+
+import { forageDefinitions } from '../definitions/forage.mjs';
+import Settings from '../settings.mjs';
+import { clamp, formatLargeNumber, formatSmallNumber } from '../util/number.mjs';
+import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject } from '../util/object.mjs';
+
+/**
+ * Manages a population of a single species within the simulation.
+ * Tracks info like number of individuals, and current fat reserves.
+ */
+export default class Population {
+  /** @type {Species} */ #species;
+  /** @type {number} */ #count;
+  /** @type {number} */ #fat;  // In the range [0 .. 1], representing portion of maximum fat reserves for the species. Always 0 if the species doesn't have fat reserves.
+
+  get count() { return this.#count; }
+  get species() { return this.#species; }
+
+  constructor(species) {
+    this.#species = species;
+    this.#count = species.getInitialPopulation().population;
+    this.#fat = species.getInitialFatPercentage();
+  }
+
+  getFatRatio() {
+    if (!this.#species.canStoreFat()) return 0;
+    return this.#fat;
+  }
+
+  getFatPercentage() {
+    return this.getFatRatio() * 100;
+  }
+
+  getTotalFatEnergyCapacity() {
+    if (!this.#species.canStoreFat()) return 0;
+
+    const fatPerMember = this.#species.getFatCapacityPerMember();
+    return fatPerMember * this.#count;
+  }
+
+  getAvailableFatEnergy() {
+    if (!this.#species.canStoreFat()) return 0;
+    return this.getFatRatio() * this.getTotalFatEnergyCapacity();
+  }
+
+  getTotalPower() {
+    return this.#count * this.#species.power;
+  }
+
+  getTotalAppetite() {
+    return this.#count * this.#species.appetite;
+  }
+
+  getTotalEnergyUpkeep() {
+    return this.#count * this.#species.getEnergyUpkeep();
+  }
+
+  /**
+   * @param {string[]} forages
+   * @return {Object<string, number>} preference scores by forage type
+   */
+  getPreferenceScores(forages) {
+    // Score each option
+    const rawScores = mapArrayValuesToObject(forages, forageType => this.getScoreForForage(forageType));
+    const onlyPositiveScores = filterObject(rawScores, (key, value) => value > 0);
+    const normalized = normalizeObject(onlyPositiveScores);
+
+    const pickyness = this.#species.getPickyness();
+    const preferenceScores = mapObjectValues(normalized, (key, value) => value ** pickyness);
+
+    return preferenceScores;
+  }
+
+  getScoreForForage(forageType) {
+    const energyYield = this.#species.getEnergyYield(forageType);
+    const waterYield = forageDefinitions[forageType].water ?? 0;
+
+    return energyYield + waterYield/10;
+  }
+
+  getMaxUnitsConsumable(forageType, totalAppetite = this.getTotalAppetite()) {
+    const digestion = forageDefinitions[forageType].digestion;
+    return totalAppetite / digestion;
+  }
+
+  /**
+   * @param {Object<string, number>} eatingPlan A collection of forage types and the amount of each type being eaten
+   */
+  getUnusedAppetite(eatingPlan) {
+    const totalAppetite = this.getTotalAppetite();
+
+    let usedAppetite = 0;
+    for (const forageType in eatingPlan) {
+      usedAppetite += eatingPlan[forageType] * forageDefinitions[forageType].digestion;
+    }
+
+    let unusedAppetite = totalAppetite - usedAppetite;
+    return unusedAppetite;
+  }
+
+  /**
+   * @param {Object<string, number>} availableForages
+   * @return {Object<string, number>} demand by forage type
+   */
+  getForageDemands(availableForages) {
+    if (this.#count === 0) return {};
+
+    const species = this.#species;
+
+    const canEat = Object.keys(
+      filterObject(availableForages, (forageType, amount) => {
+        return amount > 0 && species.canEat(forageType);
+      })
+    );
+    const uncappedForages = new Set(canEat);
+    const preferenceScores = this.getPreferenceScores(canEat);
+    const normalizedScores = normalizeObject(preferenceScores);
+
+
+    /** @type {Object<string, number>} */
+    const demand = mapObjectValues(normalizedScores, (forageType, score) => {
+      return score * this.getMaxUnitsConsumable(forageType);
+    });
+
+    // Loop through, and reduce any bids which exceed the available stock
+    for (const forageType in demand) {
+      if (demand[forageType] > availableForages[forageType]) {
+        demand[forageType] = availableForages[forageType];
+        uncappedForages.delete(forageType);
+      }
+    }
+
+    // Iterate until either we have no remaining appetite, or all options are capped by available forage
+    let unusedAppetite = this.getUnusedAppetite(demand);
+    while (unusedAppetite > 0 && uncappedForages.size > 0) {
+
+      // Recalculate preference scores for only the remaining options, and renormalize
+      const filteredScores = filterObject(preferenceScores, (key) => uncappedForages.has(key));
+      const normalizedScores = normalizeObject(filteredScores);
+
+      // Assign remaining appetite based on the new scores, but capped by the available forage and digestion limits
+      const additionalDemand = mapObjectValues(normalizedScores, (forageType, score) => {
+        return score * this.getMaxUnitsConsumable(forageType, unusedAppetite);
+      });
+
+      for (const forageType in additionalDemand) demand[forageType] += additionalDemand[forageType];
+
+      // Loop through, and reduce any bids which exceed the available stock
+      for (const forageType of uncappedForages) {
+        if (demand[forageType] > availableForages[forageType]) {
+          demand[forageType] = availableForages[forageType];
+          uncappedForages.delete(forageType);
+        }
+      }
+
+      unusedAppetite = this.getUnusedAppetite(demand);
+    }
+
+    return demand;
+  }
+
+  /**
+   * @param {Object<string, number>} eatenForages
+   * @return {{ births: number, deaths: number, fatDelta: number, remainingEnergyDeficit: number }}
+   * births: number of births from energy surplus
+   * deaths: number of deaths from energy deficit
+   * fatDelta: net change in fat energy (positive if fat stores increased)
+   * remainingEnergyDeficit: any remaining energy deficit after using up fat reserves, which could be used to calculate additional deaths if desired
+   */
+  processConsumption(eatenForages) {
+    const species = this.#species;
+
+    let netEnergy = 0;
+    let netWater = 0;
+
+    // Gain energy/water for foods consumed
+    for (const forageType in eatenForages) {
+      const food = forageDefinitions[forageType];
+      netEnergy += eatenForages[forageType] * species.getEnergyYield(forageType);
+      if (food.water) netWater += eatenForages[forageType] * food.water;
+    }
+
+    // Lose energy for basic hunger
+    netEnergy -= this.getTotalEnergyUpkeep();
+    if (netEnergy < 0 && Settings.log.energyDeficits) this.logEnergyDeficit(-netEnergy, eatenForages);
+
+    // Update population counts based on satisfaction
+    let births = 0, deaths = 0, energyStoredAsFat = 0, fatEnergyUsed = 0, remainingEnergyDeficit = 0;
+    if (netEnergy < 0) {
+      const energyDeficit = -netEnergy;
+      ({ remainingEnergyDeficit, fatEnergyUsed, deaths } = this.withdrawFromFatAndMaybeDie(energyDeficit));
+    } else if (netEnergy > 0) {
+      ({ births, energyStoredAsFat } = this.maybeBirthOrStoreToFat(netEnergy));
+    }
+
+    return { births, deaths, fatDelta: energyStoredAsFat - fatEnergyUsed, remainingEnergyDeficit };
+  }
+
+  withdrawFromFatAndMaybeDie(energyDeficit) {
+    const species = this.#species;
+
+    const { remainingEnergyDeficit, fatEnergyUsed } = this.withdrawFromFatToCoverEnergyDeficit(energyDeficit);
+    if (remainingEnergyDeficit <= 0) {
+      // No deaths if we were able to cover the energy deficit with fat reserves
+      return { remainingEnergyDeficit: 0, fatEnergyUsed, deaths: 0 };
+    }
+
+    // If still defecit, deaths proportional to energy deficit
+    let deaths = species.getDeathsFromEnergyDeficit(remainingEnergyDeficit);
+    if (deaths > this.#count) deaths = this.#count;
+
+    if (deaths > 0 && Settings.log.deaths) console.log(`Population '${species}': ${deaths} deaths.`);
+
+    this.#count -= deaths;
+    return { remainingEnergyDeficit, fatEnergyUsed, deaths };
+  }
+
+  withdrawFromFatToCoverEnergyDeficit(energyDeficit) {
+    const species = this.#species;
+    if (!species.canStoreFat()) return { remainingEnergyDeficit: energyDeficit, fatEnergyUsed: 0 };
+
+    const fatEnergyUsed = Math.min(this.getAvailableFatEnergy(), energyDeficit);
+    this.spendFatEnergy(fatEnergyUsed);
+    const remainingEnergyDeficit = energyDeficit - fatEnergyUsed;
+
+    return { remainingEnergyDeficit, fatEnergyUsed };
+  }
+
+  spendFatEnergy(energyAmount) {
+    if (!this.#species.canStoreFat()) return;
+    this.#fat -= energyAmount / this.getTotalFatEnergyCapacity();
+    this.#fat = clamp(this.#fat, 0, 1);
+  }
+
+  storeEnergyAsFat(energyAmount) {
+    if (!this.#species.canStoreFat()) return;
+    this.#fat += energyAmount / this.getTotalFatEnergyCapacity();
+    this.#fat = clamp(this.#fat, 0, 1);
+  }
+
+  getBirthsMax() {
+    const species = this.#species;
+    let cap = Math.floor(this.#count * species.getFecundityMultiplier());
+
+    if (cap < 1) cap = 1; // Always allow at least 1 birth if sufficient energy
+    if (this.#count === 1) cap = 0; // If only 1 member of the population, cannot reproduce asexually, so no births regardless of energy surplus
+
+    return cap;
+  }
+
+  getBirthsForEnergyAmount(energy) {
+    const costPerBirth = this.#species.getBirthEnergyCost();
+    const numBirthsForEnergy = Math.floor(energy / costPerBirth);
+    const max = this.getBirthsMax();
+    const births = clamp(numBirthsForEnergy, 0, max);
+
+    return births;
+  }
+
+  selectNumBirths(energy) {
+    const species = this.#species;
+
+    const birthsWithoutFat = this.getBirthsForEnergyAmount(energy);
+
+    let birthsWithFatSpend = 0;
+    if (species.canStoreFat()) {
+      // If any fat reserves, maybe withdraw from fat to make births possible that wouldn't be with just food energy
+      const availableFatEnergy = this.getAvailableFatEnergy();
+      birthsWithFatSpend = this.getBirthsForEnergyAmount(energy + availableFatEnergy);
+    }
+
+    const costPerBirth = species.getBirthEnergyCost();
+    if (birthsWithFatSpend > birthsWithoutFat) {
+      const additionalBirths = birthsWithFatSpend - birthsWithoutFat;
+      const fatEnergyWithdrawal = additionalBirths * costPerBirth;
+      this.spendFatEnergy(fatEnergyWithdrawal);
+      energy += fatEnergyWithdrawal;
+    }
+
+    const births = Math.max(birthsWithoutFat, birthsWithFatSpend);
+    const energySpentOnBirths = births * costPerBirth;
+    energy -= energySpentOnBirths;
+
+    return { births, remainingEnergySurplus: energy };
+  }
+
+  maybeBirthOrStoreToFat(energySurplus) {
+    const { births, remainingEnergySurplus } = this.selectNumBirths(energySurplus);
+    this.#count += births;
+
+    // If any remaining unspent surplus, attempt to store to fat
+    this.storeEnergyAsFat(remainingEnergySurplus);
+
+    return { births, energyStoredAsFat: remainingEnergySurplus };
+  }
+
+
+
+
+
+  // #region Logging
+
+  logState(prefix = '') {
+    const fatPercent = this.getFatPercentage();
+    const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
+    const countText = formatLargeNumber(this.#count);
+    console.log(`${prefix}${this.#species} (power ${formatSmallNumber(this.#species.power)}, appetite ${this.#species.appetite}): \t${countText}${fatText}`);
+  }
+
+  logFinalState(prefix = '') {
+    if (this.#count === 0) {
+      console.log(`${prefix}${this.#species}: extinct`);
+    } else {
+      const fatPercent = this.getFatPercentage();
+      const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(0)}% fat` : '';
+      const countText = formatLargeNumber(this.#count);
+      console.log(`${prefix}${this.#species}: \t${countText}${fatText} \t- total power ${formatLargeNumber(this.getTotalPower())}`);
+    }
+  }
+
+  logEnergyDeficit(energyDeficit, eatenForages) {
+    console.log(`Population '${this.#species}' has energy deficit of ${energyDeficit.toFixed(1)}`);
+    console.log(`  Consumed:`);
+    for (const forageType in eatenForages) {
+      console.log(`    ${forageType}: ${eatenForages[forageType].toFixed(1)} (per each: energy ${this.#species.getEnergyYield(forageType)}, water ${forageDefinitions[forageType].water ?? 0})`);
+    }
+  }
+
+  logExtinction(forageEaten, forageDemanded, fatEnergyUsed, remainingEnergyDeficit) {
+    const species = this.#species;
+
+    console.log();
+    console.log(`${species} population has gone extinct.`);
+    console.log('Ate:', forageEaten);
+    console.log('Demanded:', forageDemanded);
+    console.log('Energy from food:');
+    for (const food in forageEaten) {
+      const amount = forageEaten[food];
+      const energyYield = species.getEnergyYield(food) * amount;
+      console.log(`  ${amount} ${food}: ${energyYield.toFixed(1)} energy`);
+    }
+    console.log('species.power:', species.power);
+    console.log('Energy spent on metabolism:', -this.getTotalEnergyUpkeep());
+    console.log('Energy from fat used:', fatEnergyUsed);
+    console.log('remaining energy deficit after fat withdrawal:', remainingEnergyDeficit);
+  console.log();
+  }
+
+  // #endregion
+}
