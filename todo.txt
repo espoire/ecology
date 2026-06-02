@@ -1,9 +1,6 @@
 TODO
 Refactor
-  Make population fat stored as energy amount, not fraction. Should no generate free energy from nowhere when having births at nonzero fat.
   Violent deaths waste fat, subtract from reserves when they occur (TODO future)
-  Clean up main omnibus into modules
-    Add a Population class to manage those operations, analogous to the Species class for species
 Predation
   Add carnivores that can eat other animals.
   Food value based on prey power + current fat, includes some water

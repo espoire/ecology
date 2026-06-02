@@ -12,7 +12,7 @@ import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject 
 export default class Population {
   /** @type {Species} */ #species;
   /** @type {number} */ #count;
-  /** @type {number} */ #fat;  // In the range [0 .. 1], representing portion of maximum fat reserves for the species. Always 0 if the species doesn't have fat reserves.
+  /** @type {number} */ #fat;  // In absolute energy units. Always 0 if the species doesn't have fat reserves.
 
   get count() { return this.#count; }
   get species() { return this.#species; }
@@ -20,12 +20,12 @@ export default class Population {
   constructor(species) {
     this.#species = species;
     this.#count = species.getInitialPopulation().population;
-    this.#fat = species.getInitialFatPercentage();
+    this.#fat = species.getInitialFatPercentage() * this.getTotalFatEnergyCapacity();
   }
 
   getFatRatio() {
     if (!this.#species.canStoreFat()) return 0;
-    return this.#fat;
+    return this.#fat / this.getTotalFatEnergyCapacity();
   }
 
   getFatPercentage() {
@@ -41,7 +41,7 @@ export default class Population {
 
   getAvailableFatEnergy() {
     if (!this.#species.canStoreFat()) return 0;
-    return this.getFatRatio() * this.getTotalFatEnergyCapacity();
+    return this.#fat;
   }
 
   getTotalPower() {
@@ -229,14 +229,14 @@ export default class Population {
 
   spendFatEnergy(energyAmount) {
     if (!this.#species.canStoreFat()) return;
-    this.#fat -= energyAmount / this.getTotalFatEnergyCapacity();
-    this.#fat = clamp(this.#fat, 0, 1);
+    this.#fat -= energyAmount;
+    this.#fat = clamp(this.#fat, 0, this.getTotalFatEnergyCapacity());
   }
 
   storeEnergyAsFat(energyAmount) {
     if (!this.#species.canStoreFat()) return;
-    this.#fat += energyAmount / this.getTotalFatEnergyCapacity();
-    this.#fat = clamp(this.#fat, 0, 1);
+    this.#fat += energyAmount;
+    this.#fat = clamp(this.#fat, 0, this.getTotalFatEnergyCapacity());
   }
 
   getBirthsMax() {
