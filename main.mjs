@@ -4,73 +4,7 @@ import { forage, water } from "./definitions/names.mjs";
 import { speciesDefinitions } from "./definitions/species.mjs";
 import { runSim } from "./simulation.mjs";
 
-// TODO
-// Refactor
-//   Make population fat stored as energy amount, not fraction. Should no generate free energy from nowhere when having births at nonzero fat.
-//   Violent deaths waste fat, subtract from reserves when they occur (TODO future)
-//   Clean up main omnibus into modules
-// Predation
-//   Add carnivores that can eat other animals.
-//   Food value based on prey power + current fat, includes some water
-//   Food digestion based on prey size
-//   Speed: Predatior speed must be >= prey speed to catch them.
-//     Hunt cost based on the prey speed stat
-//   Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
-//   Attack:
-//     Predator: Must be >= prey armor AND > prey attack to eat them.
-//     Prey: Adds hunt cost for predator.
-//   Venom: boolean trait, as predator adds extra Attack (unless prey has venom resistance trait).
-//     As prey, cannot be eaten by predators without venom resistance trait.
-//     Substantial metabolic cost
-//   Venom resistance: boolean trait, negates venom trait of predator/prey. Substantial metabolic cost.
-// Multi-biome systems with emigration
-//   Mobile species may wander between active biomes, based on biome adjacency graph and species' mobility.
-//   Probability of wander per member per day = speed^2 / base_rate
-//   Won't wander into biomes that can't support them (e.g. no edible food, or bad climate tags)
-//   Won't reduce source population below 2
-//   Some traits may alter mobility rate
-//     - Flying might increase this (in addition to its predation effects)
-//     - 'Migratory' trait might increase this (and do nothing much else)
-// Parasitism
-//   Add parasites that can directly extract energy from hosts without killing them (except insofar as they cause energy deficit that leads to death).
-//   Some kind of infection/transmission mechanic, parasite population keeps an infected count for each host species, growth rate is capped by per-host infected counts
-//   When hosts die, infected ones preferentially-likely to die
-// Habitat Requirements
-//   hot/cold/air/aquatic add a power cost
-//   Biomes list their climate tags
-//   If species has any required climate tags that biome doesn't have, cannot live in that biome; do not include during setup
-//   If species has any excluded climate tags that biome does have, cannot live in that biome; do not include during setup
-// Water
-//   Species need 1 water per energy consumed
-//   Fat can also store an equal amount of water
-//     Track population fat energy & water separately. Same cap for each, non-exclusive.
-//   Bid/claim from water sources, just like how forage works
-//   Water-storing trait adds to water storage cap, but also adds to metabolic cost (less than a like amount of fat stat would, though)
-//   Water-efficiency trait reduces water needs per energy consumed, but also adds to metabolic cost
-// Seasons
-//   Biomes have a "seasonality" subobject that determines how much resource spawn rates fluctuate over the course of a year?
-//   { min: number, period: number (days) } (max is 1.0)
-//   Enhance to vary per resource type. E.g. fruit peaks in autumn, leaves in spring/summer, etc.
-// Plants
-//   Add plant species, use ground-water and sunlight, ARE composed of various forages?
-//   Sunlight produced daily, rots 100% daily, and "eating" it doesn't consume it.
-//   E.g. the day has a sunlight intensity value, differing plants can use up to some max amount. E.g. trees can use more sun than a strawberry can
-//   Include the plants' forage values when bidding/consuming, if they get eaten then kill some of the plant population
-//   Rain and sun are anti-correlated, so on rainy days there is less sun and vice versa. Maybe also have some random variation in sun independent of rain?
-//   Surface water "decays" into ground water at a constant rate
-//     Usually fast enough that a rainy day will sink in in a day or three
-//     Several consecutive heavy-rain days might overwhelm the ground water capacity and lead to some excess surface water remaining for a while, though
-//   Plants only use ground water
-//   Biome has a ground water capacity cap
-//   Add (tiny) amounts of water to various forage types
-
-let species = [];
-for (const key in speciesDefinitions) {
-  const definition = speciesDefinitions[key];
-  species.push(
-    new Species(definition)
-  );
-}
+const species = Object.values(speciesDefinitions).map(def => new Species(def));
 
 const population = [];
 for (const s of species) {
