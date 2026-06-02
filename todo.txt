@@ -26,6 +26,10 @@ Multi-biome systems with emigration
   Some traits may alter mobility rate
     - Flying might increase this (in addition to its predation effects)
     - 'Migratory' trait might increase this (and do nothing much else)
+  Define initial biome for each species, auto-infer habitat properties from initial biome
+  Define biome connections per each biome
+Graphing
+  Export various interesting time series as .csv, for graphing in Excel
 Parasitism
   Add parasites that can directly extract energy from hosts without killing them (except insofar as they cause energy deficit that leads to death).
   Some kind of infection/transmission mechanic, parasite population keeps an infected count for each host species, growth rate is capped by per-host infected counts
