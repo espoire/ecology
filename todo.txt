@@ -1,10 +1,9 @@
 TODO
-Refactor
-  Violent deaths waste fat, subtract from reserves when they occur (TODO future)
 Predation
   Add carnivores that can eat other animals.
   Food value based on prey power + current fat, includes some water
   Food digestion based on prey size
+  Violent deaths waste fat, subtract from reserves when they occur
   Speed: Predatior speed must be >= prey speed to catch them.
     Hunt cost based on the prey speed stat
   Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
