@@ -1,4 +1,5 @@
 import { forageDefinitions } from "../definitions/forage.mjs";
+import { clamp } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
 
 export default class Species {
@@ -55,11 +56,28 @@ export default class Species {
   }
 
   getInitialPopulation() {
-    return Math.floor(2 + 10 / this.#size); // Start with smaller populations for larger animals to avoid immediate overconsumption;
+    const energyBudget = 1000;
+
+    let population = Math.floor(energyBudget / this.#power);
+    if (population < 2) population = 2; // Minimum population of 2 to allow for reproduction
+
+    const cost = population * this.#power;
+    let leftoverEnergy = energyBudget - cost;
+
+    if (leftoverEnergy < 0) leftoverEnergy = 0;
+
+    return { population, leftoverEnergy };
   }
 
-  getInitialFat() {
-    return this.#fat > 0 ? 0.1 : 0; // Start with 10% of max fat reserves, if they have any fat capacity
+  getInitialFatPercentage() {
+    if (!this.canStoreFat()) return 0;
+
+    const { population, leftoverEnergy } = this.getInitialPopulation();
+    const totalFatCapacity = population * this.getFatCapacityPerMember();
+    const freeStartingFat = 0.1;
+    const fatPercentage = leftoverEnergy / totalFatCapacity + freeStartingFat;
+
+    return clamp(fatPercentage, 0, 1);
   }
 
   toString() {

@@ -24,3 +24,35 @@ export function formatLargeNumber(num, decimalPlaces = 1) {
       (num / item.value).toFixed(decimalPlaces).replace(regexp, '').concat(item.symbol)
     : '0';
 }
+
+/**
+ * Small number formatter.
+ * For numbers for which that would produce sane results, acts like Number.toFixed().
+ * Auto-increases the number of decimal places for very small numbers, so that the result is never just '0.0' or similar.
+ * 
+ * @param {number} num
+ * @param {number} [decimalPlaces]
+ * @return {string}
+ */
+export function formatSmallNumber(num, decimalPlaces = 1, trimTrailingZeros = true) {
+  if (num === 0) return '0';
+
+  const absNum = Math.abs(num);
+  const magnitude = Math.floor(Math.log10(absNum));
+  const adjustedDecimalPlaces = Math.max(decimalPlaces, -magnitude);
+
+  const result = num.toFixed(Math.max(0, adjustedDecimalPlaces));
+  return trimTrailingZeros ? result.replace(/\.0+$|0+$/, '') : result;
+}
+
+/**
+ * @param {number} v
+ * @param {number} min
+ * @param {number} max
+ * @returns {number} The closest number in the range [min .. max] to the target value.
+ */
+export function clamp(v, min, max) {
+  if (v < min) return min;
+  if (v > max) return max;
+  return v;
+}

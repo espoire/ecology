@@ -1,20 +1,14 @@
 import Species from "./classes/species.mjs";
 import { biome } from "./definitions/biome.mjs";
-import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import { speciesDefinitions } from "./definitions/species.mjs";
 import { runSim } from "./simulation.mjs";
-import { formatLargeNumber } from "./util/number.mjs";
-import { filterObject, normalizeObject } from "./util/object.mjs";
-import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
-import { isNumber } from "./util/util.mjs";
 
 // TODO
 // Refactor
 //   Make population fat stored as energy amount, not fraction. Should no generate free energy from nowhere when having births at nonzero fat.
 //   Violent deaths waste fat, subtract from reserves when they occur (TODO future)
 //   Clean up main omnibus into modules
-//   Change initial pop to an initial energy budget
 // Predation
 //   Add carnivores that can eat other animals.
 //   Food value based on prey power + current fat, includes some water
@@ -82,8 +76,8 @@ const population = [];
 for (const s of species) {
   population.push({
     species: s,
-    count: s.getInitialPopulation(),
-    fat: s.getInitialFat(),
+    count: s.getInitialPopulation().population,
+    fat: s.getInitialFatPercentage(),
   });
 }
 

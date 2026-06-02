@@ -1,7 +1,7 @@
 import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
-import { formatLargeNumber } from "./util/number.mjs";
+import { formatLargeNumber, formatSmallNumber } from "./util/number.mjs";
 import { filterObject, normalizeObject } from "./util/object.mjs";
 import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
 
@@ -17,7 +17,7 @@ export function runSim(environment, population, days = 10) {
     const fatPercent = Math.round(fat * 100);
     const fatText = fatPercent > 0 ? ` + ${fatPercent}% fat` : '';
     const countText = formatLargeNumber(pop.count);
-    console.log(`- ${pop.species} (power ${pop.species.power.toFixed(1)}, appetite ${pop.species.appetite}): ${countText}${fatText}`);
+    console.log(`- ${pop.species} (power ${formatSmallNumber(pop.species.power)}, appetite ${pop.species.appetite}): ${countText}${fatText}`);
   }
 
   console.log('Environment:');
