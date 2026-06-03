@@ -4,7 +4,7 @@ const Settings = {
     deaths: false,
     extinctions: false,
     foodChain: false,
-    predation: true,
+    predation: false,
   },
 };
 

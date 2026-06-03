@@ -3,9 +3,10 @@ import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
 import { sumMapValues } from "./util/map.mjs";
-import { clamp } from "./util/number.mjs";
+import { clamp, formatSmallNumber } from "./util/number.mjs";
 import { filterObject, mapObjectValues, normalizeObject } from "./util/object.mjs";
 import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
+import fs from 'node:fs';
 
 /** @typedef {import("./classes/species.mjs").default} Species */
 /** @typedef {import("./classes/population.mjs").default} Population */
@@ -19,9 +20,14 @@ export function runSim(env, pops, days = 10) {
   const foodChain = new FoodChain(pops.map(pop => pop.species));
 
   spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
+  _initTimeSeriesLog(env, pops);
   logSimStart(env, pops);
-  for (let i = 0; i < days; i++) simulateDay(i, env, pops, foodChain);
+  for (let i = 0; i < days; i++) {
+    simulateDay(i, env, pops, foodChain);
+    _updateTimeSeriesLog(i, env, pops);
+  }
   logSimEnd(env, pops, days);
+  _exportTimeSeriesTsv();
 }
 
 /**
@@ -322,4 +328,35 @@ function _logPredationMaybe(day, pops, actualKillsByPredatorPopulation, actualDe
   }
 
   if (printedAnything) console.log();
+}
+
+let timeSeries;
+function _initTimeSeriesLog(env, pops) {
+  timeSeries = [];
+
+  timeSeries.push([
+    'day',
+    // ...Object.keys(forage),
+    ...pops.map(pop => pop.species.name),
+  ]);
+}
+
+function _updateTimeSeriesLog(day, env, pops) {
+  timeSeries.push([
+    day,
+    // ...Object.values(env.food),
+    ...pops.map(pop => {
+      let logPower = Math.log2(pop.count * pop.species.power);
+      if (logPower < 0) logPower = 0;
+      return formatSmallNumber(logPower);
+    }),
+  ]);
+}
+
+function _exportTimeSeriesTsv() {
+  const file = './out/log.tsv';
+  const content = timeSeries.map(row => row.join('\t')).join('\n');
+  fs.writeFileSync(file, content, err => {
+    if (err) console.error('Error writing time series log to file:', err);
+  });
 }
