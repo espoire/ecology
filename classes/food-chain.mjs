@@ -62,6 +62,14 @@ export default class FoodChain {
     _logMaybe(`\n${this.toString()}\n`);
   }
 
+  isPredator(species) {
+    return this.#predators.has(species);
+  }
+
+  getPreyListForPredator(predatorSpecies) {
+    return this.#preyByPredator[predatorSpecies.name] ?? [];
+  }
+
   toString() {
     const tokens = [];
 

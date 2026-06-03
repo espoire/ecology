@@ -9,4 +9,5 @@ const species = Object.values(speciesDefinitions).map(def => new Species(def));
 const population = species.map(s => new Population(s));
 const environment = Environment.generate(biome);
 
-runSim(environment, population, 10000);
+const k = 1000;
+runSim(environment, population, 100*k);

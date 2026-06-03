@@ -166,7 +166,7 @@ export const speciesDefinitions = {
     },
     speed: 2,
     weapons: 2,
-    armor: 1,
+    armor: 2,
     fat: 5,
     size: sizes[sizeNames.small],
   },

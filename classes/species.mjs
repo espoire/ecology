@@ -1,4 +1,6 @@
+import Constants from "../constants.mjs";
 import { forageDefinitions } from "../definitions/forage.mjs";
+import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
 import { clamp, formatSmallNumber } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
@@ -67,7 +69,7 @@ export default class Species {
       console.log('size:', this.#size);
     }
 
-    this.#appetite = Math.ceil(this.#size ** 0.9 + 0.01);
+    this.#appetite = this.#size ** 0.9 + 0.01;
   }
 
   getInitialPopulation() {
@@ -181,6 +183,18 @@ export default class Species {
     return 1; // TODO
   }
 
+  getBaseMeatEnergyWithoutFat() {
+    const predationEfficiency = Constants.predation.efficiency;
+    const bodyEnergy = this.getBirthEnergyCost() * predationEfficiency;
+    return bodyEnergy;
+  }
+
+  getBaseMeatVolumeWithoutFat() {
+    const meatEnergy = this.getBaseMeatEnergyWithoutFat();
+    const energyPerUnitMeat = meat.energy;
+    return meatEnergy / energyPerUnitMeat;
+  }
+
   /**
    * @returns {{ able: boolean, reason?: string }} Whether this species can be a predator, and if not, the reasons why not.
    */
@@ -218,6 +232,15 @@ export default class Species {
     if (this.#speed < otherSpecies.#speed) return {
       able: false,
       reason: `Insufficient speed: ${this.#speed} vs ${otherSpecies.#speed}`,
+    };
+
+    // Meat yield check: is the prey worth hunting?
+    const meatVolume = otherSpecies.getBaseMeatVolumeWithoutFat();
+    const perMemberAppetite = this.#appetite;
+    const satiationFraction = meatVolume / perMemberAppetite;
+    if (satiationFraction < Constants.predation.minimumSatiationFraction) return {
+      able: false,
+      reason: `Prey not worth hunting: provides ${formatSmallNumber(satiationFraction * 100)}% of a predator's appetite, which is below the minimum threshold of ${Constants.predation.minimumSatiationFraction * 100}%`,
     };
 
     return { able: true };

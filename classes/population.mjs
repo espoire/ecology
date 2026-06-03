@@ -1,9 +1,14 @@
 /** @typedef {import('./species.mjs').default} Species */
+/** @typedef {import('./food-chain.mjs').default} FoodChain */
 
+import Constants from '../constants.mjs';
 import { forageDefinitions } from '../definitions/forage.mjs';
+import meat from '../definitions/meat.mjs';
 import Settings from '../settings.mjs';
+import { mapArrayValuesToMap, mapMapValues, normalizeMap } from '../util/map.mjs';
 import { clamp, formatLargeNumber, formatSmallNumber } from '../util/number.mjs';
 import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject, sumObjectValues } from '../util/object.mjs';
+import { bellRandom } from '../util/random.mjs';
 
 /**
  * Manages a population of a single species within the simulation.
@@ -37,6 +42,11 @@ export default class Population {
 
     const fatPerMember = this.#species.getFatCapacityPerMember();
     return fatPerMember * this.#count;
+  }
+
+  getCurrentFatEnergyPerMember() {
+    if (!this.#species.canStoreFat()) return 0;
+    return this.#fat / this.#count;
   }
 
   getAvailableFatEnergy() {
@@ -80,21 +90,90 @@ export default class Population {
   }
 
   /**
+   * @param {Population} preyPopulation
+   * @returns {number} score for the given prey population, where higher is more preferred, usually in the range [0 .. approximately 1]
+   * Includes some randomness to model hunting luck.
+   */
+  getScoreForPrey(preyPopulation) {
+    const myHungerPerMember = this.#species.appetite;
+    const meatVolume = preyPopulation.getMeatVolumeForKill();
+
+    const satisfactionRatio = meatVolume / myHungerPerMember;
+
+    let satisfactionScore = 0;
+    if (satisfactionRatio <= 1) {
+      satisfactionScore = satisfactionRatio; // Linear up to 1
+    } else {
+      satisfactionScore = 0.95 + 0.05 / satisfactionRatio; // Starts at 1.0 and goes down towards 0.99 slightly for very oversized kills
+    }
+    satisfactionScore **= this.#species.getPickyness(); // More picky predators will be more sensitive to satisfaction ratio
+
+    const abundanceScore = (preyPopulation.#count / (this.#count + preyPopulation.#count)) ** 3; // Model "can I find this prey easily?" - if prey population is much larger than predator population, higher score, if much smaller, lower score
+
+    const randomFactor = bellRandom(0.1, 1); // Add some randomness to model "could the predator actually find these today" luck
+
+    return satisfactionScore * abundanceScore * randomFactor;
+  }
+
+  getMeatVolumeForKill() {
+    const meatEnergy = this.getMeatEnergyForKill();
+    const energyPerUnitMeat = meat.energy;
+    return meatEnergy / energyPerUnitMeat;
+  }
+
+  getMeatEnergyForKill() {
+    const predationEfficiency = Constants.predation.efficiency;
+
+    const bodyEnergy = this.#species.getBirthEnergyCost() * predationEfficiency;
+    const fatEnergy = this.getCurrentFatEnergyPerMember();
+    const meatEnergy = bodyEnergy + fatEnergy;
+
+    return meatEnergy;
+  }
+
+  getPredationKillQuota() {
+    return this.#count; // Each member of the population can only make 1 kill per day, so kill quota is equal to population count
+  }
+
+  /**
    * @param {Object<string, number>} eatingPlan A collection of forage types and the amount of each type being eaten
    */
-  getUnusedAppetite(eatingPlan) {
-    const totalAppetite = this.getTotalAppetite();
+  getUnusedAppetite(eatingPlan, totalAppetite = this.getTotalAppetite()) {
     const usedAppetite = sumObjectValues(eatingPlan);
     const unusedAppetite = totalAppetite - usedAppetite;
     return unusedAppetite;
   }
 
   /**
+   * @param {Population[]} preyPops
+   * @param {FoodChain} foodChain
+   * @returns {Map<Population, number>} (fractional) kill requests by prey population
+   */
+  getPredationDemands(preyPops, foodChain) {
+    if (!foodChain.isPredator(this.#species)) return new Map(); // Not a predator, so no predation demands
+
+    // Step 1: assign scores to predation options
+    const preyPopulations = foodChain.getPreyListForPredator(this.#species).map(preySpecies => preyPops.find(pop => pop.#species === preySpecies)).filter(pop => pop && pop.#count > 0);
+    const predationScores = mapArrayValuesToMap(preyPopulations, preyPop => this.getScoreForPrey(preyPop));
+    predationScores.set('miss', Constants.predation.missWeight); // Add a "miss" option to model the chance that a predator fails to catch anything, which will waste a kill slot, but not affect appetite or energy directly
+
+    // Step 2: assign kill-request amounts, totaling <= kill quota, based on predation scores
+    const killQuota = this.getPredationKillQuota(); // Max 1 kill per predator member
+    const normalized = normalizeMap(predationScores);
+    normalized.delete('miss'); // Remove the "miss" option for the next step, since it doesn't correspond to an actual prey population
+    const killRequests = mapMapValues(normalized, score => score * killQuota);
+
+    return killRequests;
+  }
+
+  /**
    * @param {Object<string, number>} availableForages
+   * @param {{ energyGained: number, waterGained: number, appetiteSatisfied: number }} status Information about the population's daily status after predation
    * @return {Object<string, number>} demand by forage type
    */
-  getForageDemands(availableForages) {
+  getForageDemands(availableForages, status) {
     if (this.#count === 0) return {};
+    if (status.appetiteSatisfied >= this.getTotalAppetite()) return {}; // If already fully satisfied by predation, no forage demands
 
     const species = this.#species;
 
@@ -107,10 +186,11 @@ export default class Population {
     const preferenceScores = this.getPreferenceScores(canEat);
     const normalizedScores = normalizeObject(preferenceScores);
 
+    const appetiteNotSatisfiedByPredation = this.getTotalAppetite() - status.appetiteSatisfied;
 
     /** @type {Object<string, number>} */
     const demand = mapObjectValues(normalizedScores, (forageType, score) => {
-      return score * this.getTotalAppetite();
+      return score * appetiteNotSatisfiedByPredation;
     });
 
     // Loop through, and reduce any bids which exceed the available stock
@@ -122,7 +202,7 @@ export default class Population {
     }
 
     // Iterate until either we have no remaining appetite, or all options are capped by available forage
-    let unusedAppetite = this.getUnusedAppetite(demand);
+    let unusedAppetite = this.getUnusedAppetite(demand, appetiteNotSatisfiedByPredation);
     while (unusedAppetite > 0 && uncappedForages.size > 0) {
 
       // Recalculate preference scores for only the remaining options, and renormalize
@@ -144,25 +224,66 @@ export default class Population {
         }
       }
 
-      unusedAppetite = this.getUnusedAppetite(demand);
+      unusedAppetite = this.getUnusedAppetite(demand, appetiteNotSatisfiedByPredation);
     }
 
     return demand;
   }
 
   /**
+   * @param {Map<Population, number>} kills
+   * @return {{ energyGained: number, waterGained: number, appetiteSatisfied: number, meatWasted: number }}
+   */
+  processPredation(kills) {
+    let remainingAppetite = this.getTotalAppetite();
+    let meatEaten = 0, meatWasted = 0;
+    for (const [preyPop, killCount] of kills.entries()) {
+      const meatPerKill = preyPop.getMeatVolumeForKill();
+      const totalMeatProduced = meatPerKill * killCount;
+      const eatenPerKill = Math.min(meatPerKill, this.#species.appetite) // Each hunter can only eat so much, so if the prey is very large, there will be per-kill waste
+      const totalEaten = Math.min(remainingAppetite, eatenPerKill * killCount);
+      remainingAppetite -= totalEaten;
+      meatEaten += totalEaten;
+
+      if (totalEaten < totalMeatProduced) meatWasted += totalMeatProduced - totalEaten;
+    }
+
+    const energyGained = meatEaten * meat.energy;
+    const waterGained = meatEaten * meat.water;
+    const appetiteSatisfied = meatEaten;
+    return { energyGained, waterGained, appetiteSatisfied, meatWasted };
+  }
+
+  /**
+   * @param {number} deaths
+   * @param {{ energyGained: number, waterGained: number, appetiteSatisfied: number, meatWasted: number }?} populationStatus
+   */
+  applyPredationDeaths(deaths, populationStatus) {
+    const deathRatio = deaths / this.#count;
+    this.#count -= deaths;
+
+    const fatEnergyLost = deaths * this.getCurrentFatEnergyPerMember();
+    this.spendFatEnergy(fatEnergyLost); // Reduce fat reserves proportional to population lost
+
+    if (populationStatus) {
+      populationStatus.appetiteSatisfied *= (1 - deathRatio); // Reduce appetite satisfied proportional to population lost
+    }
+  }
+
+  /**
    * @param {Object<string, number>} eatenForages
+   * @param {{ energyGained: number, waterGained: number }} status Information about the population's daily status after predation
    * @return {{ births: number, deaths: number, fatDelta: number, remainingEnergyDeficit: number }}
    * births: number of births from energy surplus
    * deaths: number of deaths from energy deficit
    * fatDelta: net change in fat energy (positive if fat stores increased)
    * remainingEnergyDeficit: any remaining energy deficit after using up fat reserves, which could be used to calculate additional deaths if desired
    */
-  processConsumption(eatenForages) {
+  processConsumption(eatenForages, status) {
     const species = this.#species;
 
-    let netEnergy = 0;
-    let netWater = 0;
+    let netEnergy = status.energyGained;
+    let netWater = status.waterGained;
 
     // Gain energy/water for foods consumed
     for (const forageType in eatenForages) {
@@ -295,7 +416,7 @@ export default class Population {
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
-    console.log(`${prefix}${this.#species} (power ${formatSmallNumber(this.#species.power)}, appetite ${this.#species.appetite}): \t${countText}${fatText}`);
+    console.log(`${prefix}${this.#species} (power ${formatSmallNumber(this.#species.power)}, appetite ${formatSmallNumber(this.#species.appetite)}): \t${countText}${fatText}`);
   }
 
   logFinalState(prefix = '') {

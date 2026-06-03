@@ -1,13 +1,11 @@
 TODO
 Predation
-  Food value based on prey power + current fat, includes some water
-  Meat units (e.g. appetite usage) based on prey size
-  Violent deaths waste fat, subtract from reserves when they occur
   Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
   Venom: boolean trait, as predator adds extra Attack (unless prey has venom resistance trait).
     As prey, cannot be eaten by predators without venom resistance trait.
     Substantial metabolic cost
   Venom resistance: boolean trait, negates venom trait of predator/prey. Substantial metabolic cost.
+  Wasted meat drops as meat first, degrades to carrion end-of-day
 Multi-biome systems with emigration
   Mobile species may wander between active biomes, based on biome adjacency graph and species' mobility.
   Probability of wander per member per day = speed^2 / base_rate

@@ -3,7 +3,8 @@ const Settings = {
     energyDeficits: false,
     deaths: false,
     extinctions: false,
-    foodChain: true,
+    foodChain: false,
+    predation: true,
   },
 };
 

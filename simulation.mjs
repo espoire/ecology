@@ -2,6 +2,7 @@ import FoodChain from "./classes/food-chain.mjs";
 import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
+import { sumMapValues } from "./util/map.mjs";
 import { clamp } from "./util/number.mjs";
 import { filterObject, mapObjectValues, normalizeObject } from "./util/object.mjs";
 import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
@@ -16,19 +17,111 @@ import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
  */
 export function runSim(env, pops, days = 10) {
   const foodChain = new FoodChain(pops.map(pop => pop.species));
-  
+
   spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
   logSimStart(env, pops);
-  for (let i = 0; i < days; i++) simulateDay(env, pops);
+  for (let i = 0; i < days; i++) simulateDay(i, env, pops, foodChain);
   logSimEnd(env, pops, days);
 }
 
 /**
+ * Simulate a single day of the ecosystem.
+ * @param {number} day
  * @param {Object} env
  * @param {Population[]} pops
+ * @param {FoodChain} foodChain
  */
-function simulateDay(env, pops) {
+function simulateDay(day, env, pops, foodChain) {
   spawnResources(env);
+
+  // Get predation plans
+  const predationPlans = pops.map(pop => pop.getPredationDemands(pops, foodChain));
+
+  // Sum total demand by prey population across predators
+  const totalDemandByPreyPopulation = new Map();
+  for (const plan of predationPlans) {
+    for (const [preyPop, demand] of plan.entries()) {
+      const currentDemand = totalDemandByPreyPopulation.get(preyPop) ?? 0;
+      totalDemandByPreyPopulation.set(preyPop, currentDemand + demand);
+    }
+  }
+
+  // Calculate satisfaction by prey population
+  const satisfactionByPreyPopulation = new Map();
+  for (const [preyPop, totalDemand] of totalDemandByPreyPopulation.entries()) {
+    if (totalDemand == 0) continue;
+
+    // Satisfaction is the portion of demand that can be met with available resources -- in this case, the pray population count
+    const availableRatio = preyPop.count / totalDemand;
+    satisfactionByPreyPopulation.set(preyPop, clamp(availableRatio, 0, 1));
+  }
+
+  // Assign actual kills to each predator population based on satisfaction
+  /** @type {Map<Population, number>[]} */
+  const actualKillsByPredatorPopulation = [];
+  /** @type {Map<Population, number>} */
+  const actualDeathsByPreyPopulation = new Map();
+  const killQuotas = pops.map(pop => pop.getPredationKillQuota());
+
+  // Loop through BY PREY POPULATION to assign kills, going in least-satisfaction to most-satisfaction order, filling bids in most-demanding-predator-first order, to model predators competing for prey
+  const preyPopsBySatisfaction = [...satisfactionByPreyPopulation.entries()].sort((a, b) => a[1] - b[1]); // Sort prey populations by satisfaction, lowest first
+  for (const [preyPop, satisfaction] of preyPopsBySatisfaction) {
+    let preyCount = preyPop.count;
+
+    // Get all predators that want this prey population
+    const predatorPops = predationPlans
+      .map((plan, index) => ({ plan, index }))
+      .filter(({ plan }) => plan.has(preyPop))
+      .sort((a, b) => a.plan.get(preyPop) - b.plan.get(preyPop)); // Sort predators by demand for this prey population, highest first
+
+    for (const { plan, index } of predatorPops) {
+      const demand = plan.get(preyPop); // How much this predator population wants to kill from this prey population
+      const satisfiedDemand = demand * satisfaction; // How much of that demand can actually be satisfied based on prey population availability
+      const baseKills = roundRandom(satisfiedDemand); // Base kills is the satisfied demand rounded to a whole number, with some randomness
+
+      let kills = baseKills;
+      if (kills > preyCount) kills = preyCount; // Can't kill more than the available prey population
+      
+      const killQuota = killQuotas[index]; // Max this predator population can kill across all prey populations
+      if (kills > killQuota) kills = killQuota; // Can't kill more than the predator population's kill quota
+
+      actualKillsByPredatorPopulation[index] ??= new Map();
+      actualKillsByPredatorPopulation[index].set(preyPop, kills);
+
+      actualDeathsByPreyPopulation.set(preyPop, (actualDeathsByPreyPopulation.get(preyPop) ?? 0) + kills);
+      preyCount -= kills;
+      killQuotas[index] -= kills;
+    }
+  }
+
+  _logPredationMaybe(day, pops, actualKillsByPredatorPopulation, actualDeathsByPreyPopulation);
+
+  // Process meat consumption for each predator population
+  //   Record energy/water gains
+  //   Record appetite satisfaction
+  //   Record meat wasted from oversatisfied individual-appetites
+  let totalMeatWasted = 0;
+  const populationStatuses = [];
+  for (let i = 0; i < pops.length; i++) {
+    const pop = pops[i];
+    const kills = actualKillsByPredatorPopulation[i];
+    if (!kills) continue;
+
+    const { energyGained, waterGained, appetiteSatisfied, meatWasted } = pop.processPredation(kills);
+    populationStatuses[i] = { energyGained, waterGained, appetiteSatisfied };
+    totalMeatWasted += meatWasted;
+  }
+
+  // Produce carrion from total meat waste
+  env.food[forage.carrion] += totalMeatWasted; // Meat spoils directly to carrion 1:1, and can be eaten immediately same-day by scavengers
+
+  // Apply deaths from predation to prey populations
+  //   Reduce population
+  //   Reduce fat stores proportionally (if they had any)
+  //   Reduce appetite satisfaction proportionally (if they were also eating meat today)
+  for (const [preyPop, deaths] of actualDeathsByPreyPopulation.entries()) {
+    preyPop.applyPredationDeaths(deaths, populationStatuses[preyPop.index]);
+  }
 
   // Register demands from population
   const totalDemand = {
@@ -37,7 +130,10 @@ function simulateDay(env, pops) {
   };
 
   /** @type {Object<string, number>[]} Where index corresponds to population index */
-  const demands = pops.map(pop => pop.getForageDemands(env.food));
+  const demands = pops.map((pop, i) => {
+    populationStatuses[i] ??= { energyGained: 0, waterGained: 0, appetiteSatisfied: 0 }; // Ensure population status exists for this population, even if they had no predation activity today
+    return pop.getForageDemands(env.food, populationStatuses[i]);
+  });
 
   // Sum total demand by food type across populations
   for (const demand of demands) {
@@ -95,7 +191,7 @@ function simulateDay(env, pops) {
     const priorPopulation = pop.count;
 
     const forageEaten = actualConsumptionByPopulation[i];
-    const { births, deaths, fatDelta, remainingEnergyDeficit } = pop.processConsumption(forageEaten);
+    const { births, deaths, fatDelta, remainingEnergyDeficit } = pop.processConsumption(forageEaten, populationStatuses[i]);
     if (pop.count <= 0 && Settings.log.extinctions) pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit, priorPopulation);
 
     if (deaths > 0) deathsByPopulation[i] = deaths;
@@ -195,4 +291,35 @@ function logForageStocks(env, prefix = '') {
       console.log(`${prefix}- ${forageType}: \t${amount.toFixed(0)}`);
     }
   }
+}
+
+/**
+ * @param {number} day
+ * @param {Population[]} pops
+ * @param {Map<Population, number>[]} actualKillsByPredatorPopulation
+ * @param {Map<Population, number>} actualDeathsByPreyPopulation
+ */
+function _logPredationMaybe(day, pops, actualKillsByPredatorPopulation, actualDeathsByPreyPopulation) {
+  if (!Settings.log.predation) return;
+
+  let printedAnything = false;
+  for (let i = 0; i < pops.length; i++) {
+    const pop = pops[i];
+    const kills = actualKillsByPredatorPopulation[i];
+    const killCount = sumMapValues(kills);
+    const deathCount = actualDeathsByPreyPopulation.get(pop) ?? 0;
+
+    if (killCount > 0 || deathCount > 0) {
+      if (!printedAnything) {
+        console.log();
+        console.log(`Day ${day + 1} predation:`);
+      }
+
+      console.log(`- ${pop.species.name}: ate ${killCount}, ${deathCount} were eaten`);
+
+      printedAnything = true;
+    }
+  }
+
+  if (printedAnything) console.log();
 }
