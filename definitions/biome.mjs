@@ -140,7 +140,35 @@ const biomes = {
       aquatic: true,
       air: true,
     },
-  }
+  },
+  tundra: {
+    name: 'tundra',
+    forage: {
+      [forage.leaves]: 50,
+      [forage.grass]: 50,
+      [forage.seeds]: 10,
+      [forage.nuts]: 5,
+      [forage.fruit]: 5,
+      [forage.algae]: 0,
+      [forage.lichen]: 500,
+      [forage.wood]: 50,
+      [forage.carrion]: 0,
+    },
+    water: {
+      [water.fresh]: 100,
+      [water.salt]: 0,
+      rain: {
+        frequency: 0.02,
+        intensity: 20,
+      },
+    },
+    climate: {
+      hot: false,
+      cold: true,
+      aquatic: false,
+      air: true,
+    },
+  },
 };
 
-export const biome = biomes.plains;
+export const biome = biomes.tundra;

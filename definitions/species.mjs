@@ -80,6 +80,7 @@ export const speciesDefinitions = {
     },
     speed: 2,
     armor: 1,
+    flying: true,
     size: sizes[sizeNames.tiny],
   },
   slug: {
@@ -157,7 +158,7 @@ export const speciesDefinitions = {
   },
   fox: {
     name: 'fox',
-    diet: [forage.carrion, forage.fruit], // TODO add small animals to diet
+    diet: [forage.carrion, forage.fruit],
     drinks: [water.fresh],
     climate: {
       requires: ['air'],
@@ -202,8 +203,7 @@ export const speciesDefinitions = {
       requires: ['air'],
       excludes: ['hot', 'aquatic'],
     },
-    speed: 3,
-    armor: 2,
+    armor: 3,
     fat: 20,
     size: sizes[sizeNames.big],
   },
@@ -215,6 +215,7 @@ export const speciesDefinitions = {
       requires: ['air'],
       excludes: ['hot', 'cold', 'aquatic'],
     },
+    flying: true,
     size: sizes[sizeNames.tiny],
   },
   mantis: {
@@ -239,6 +240,7 @@ export const speciesDefinitions = {
     },
     speed: 6,
     weapons: 4,
+    flying: true,
     size: sizes[sizeNames.small],
   },
   spider: {
@@ -249,8 +251,10 @@ export const speciesDefinitions = {
       requires: ['air'],
       excludes: ['hot', 'cold', 'aquatic'],
     },
-    speed: 0,
     weapons: 2,
+    speed: 2,
+    reach: true, // Webs allow spiders to attack flying prey
+    venom: 'venom',
     size: between(sizes[sizeNames.fine], sizes[sizeNames.tiny]),
   },
   'mini-giraffe': {
@@ -349,6 +353,142 @@ export const speciesDefinitions = {
     armor: 2,
     fat: 10,
     size: sizes[sizeNames.medium],
+  },
+  deathcap: {
+    name: 'deathcap',
+    diet: [forage.wood, forage.leaves],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    venom: 'venom',
+    size: sizes[sizeNames.small],
+  },
+  rattlesnake: {
+    name: 'rattlesnake',
+    diet: [forage.carrion],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['cold', 'aquatic'],
+    },
+    speed: 3,
+    weapons: 1,
+    venom: 'venom',
+    size: sizes[sizeNames.tiny],
+  },
+  bird: {
+    name: 'bird',
+    diet: [forage.fruit, forage.seeds],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    speed: 3,
+    flying: true,
+    size: sizes[sizeNames.small],
+  },
+  gnat: {
+    name: 'gnat',
+    diet: [forage.fruit],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    flying: true,
+    size: sizes[sizeNames.fine],
+  },
+  // frog: {
+  //   name: 'frog',
+  //   diet: [forage.carrion, forage.algae],
+  //   drinks: [water.fresh],
+  //   climate: {
+  //     requires: ['air'],
+  //     excludes: ['hot', 'cold'],
+  //   },
+  //   speed: 2,
+  //   weapons: 1,
+  //   reach: true, // Tongue allows frogs to catch flying prey
+  //   multiKill: 5, // Can catch many bugs in a day TODO implement
+  //   size: sizes[sizeNames.tiny],
+  // },
+  rat: {
+    name: 'rat',
+    diet: [forage.carrion, forage.seeds],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    speed: 2,
+    weapons: 1,
+    fat: 1,
+    size: sizes[sizeNames.tiny],
+  },
+  caterpillar: {
+    name: 'caterpillar',
+    diet: [forage.leaves],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    venom: 'venom',
+    fat: 1,
+    size: sizes[sizeNames.tiny],
+  },
+  'toxic-nudibranch': {
+    name: 'toxic-nudibranch',
+    diet: [forage.lichen],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    venom: 'venom',
+    size: sizes[sizeNames.tiny],
+  },
+  'dire-honey-badger': {
+    name: 'dire-honey-badger',
+    diet: [forage.carrion],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    speed: 1,
+    weapons: 1,
+    armor: 3,
+    fat: 50,
+    venom: 'anti-venom', // Honey badgers are resistant to venom, so they can eat venomous prey without being affected
+    size: sizes[sizeNames.medium],
+  },
+  'lichen-mite': {
+    name: 'lichen-mite',
+    diet: [forage.lichen],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    armor: 2,
+    venom: 'venom',
+    size: sizes[sizeNames.small],
+  },
+  'winged-springtail': {
+    name: 'winged-springtail',
+    diet: [forage.lichen],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'cold', 'aquatic'],
+    },
+    venom: 'venom',
+    flying: true,
+    size: sizes[sizeNames.tiny],
   },
 };
 

@@ -1,10 +1,7 @@
 TODO
 Predation
   Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
-  Venom: boolean trait, as predator adds extra Attack (unless prey has venom resistance trait).
-    As prey, cannot be eaten by predators without venom resistance trait.
-    Substantial metabolic cost
-  Venom resistance: boolean trait, negates venom trait of predator/prey. Substantial metabolic cost.
+    If so, stealth-based predators can bypass the speed contest via winning a stealth contest instead
   Wasted meat drops as meat first, degrades to carrion end-of-day
 Multi-biome systems with emigration
   Mobile species may wander between active biomes, based on biome adjacency graph and species' mobility.

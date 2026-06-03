@@ -445,6 +445,7 @@ export default class Population {
     console.log(`${species} population has gone extinct.`);
     console.log('Ate:', forageEaten);
     console.log('Demanded:', forageDemanded);
+    console.log('Demanded:', forageDemanded);
     console.log('Energy from food:');
     for (const food in forageEaten) {
       const amount = forageEaten[food];
