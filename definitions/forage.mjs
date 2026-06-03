@@ -1,51 +1,45 @@
+import { forage } from "./names.mjs";
+
 export const forageDefinitions = {
-  leaves: {
-    energy: 1, // Yield per unit consumed
-    digestion: 4, // Max consumed/day = 100 / digestion
-    vision: 0, // No sight penalty
+  [forage.nuts]: {
+    energy: 10,
+    adaptationCost: 2,
   },
-  grass: {
-    energy: 1,
-    digestion: 4,
-    vision: 0,
+  [forage.seeds]: {
+    energy: 9,
+    adaptationCost: 1,
   },
-  seeds: {
-    energy: 2,
-    digestion: 2,
-    vision: 1, // If vision < 1, costs 1 extra energy to find
+  [forage.carrion]: {  // Also enables predation (although weapons:1 is needed to actually establish a predator-prey relationship against anything)
+    energy: 8,
+    water: 1,
+    adaptationCost: 2,
   },
-  nuts: {
-    energy: 3,
-    digestion: 1,
-    hardness: 2, // Requires attack >= hardness to consume
-    vision: 1,
+  [forage.fruit]: {
+    energy: 6,
+    water: 10,
+    adaptationCost: 1,
   },
-  fruit: {
-    energy: 2,
-    water: 1, // Provides 1 water per unit consumed
-    digestion: 1,
-    vision: 2, // If vision < 2, costs [defecit] extra energy to find
+  [forage.grass]: {
+    energy: 5,
+    water: 4,
+    adaptationCost: 2,
   },
-  algae: {
-    energy: 1,
-    digestion: 3,
-    vision: 0,
-    aquatic: true, // Consumer cannot exclude aquatic biome to eat this
-  },
-  lichen: {
-    energy: 1,
-    digestion: 5,
-    vision: 0,
-  },
-  wood: {
-    energy: 0.5,
-    digestion: 10,
-    vision: 0,
-  },
-  carrion: {
+  [forage.leaves]: {
     energy: 4,
-    water: 0.5,
-    digestion: 1,
-    vision: 2,
+    water: 4,
+    adaptationCost: 2,
+  },
+  [forage.algae]: {
+    energy: 3,
+    water: 1,   // TODO: water is inverted if no 'salt' water drinking adaptation
+    adaptationCost: 2,
+  },
+  [forage.wood]: {
+    energy: 3,
+    adaptationCost: 4,
+  },
+  [forage.lichen]: {
+    energy: 2,
+    adaptationCost: 3,
   },
 };

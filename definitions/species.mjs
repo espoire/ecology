@@ -89,7 +89,7 @@ export const speciesDefinitions = {
   },
   slug: {
     name: 'slug',
-    diet: [forage.leaves, forage.lichen, forage.algae, forage.wood, forage.carrion, forage.fruit],
+    diet: [forage.leaves, forage.wood, forage.carrion, forage.fruit],
     drinks: [water.fresh],
     climate: {
       requires: ['air'],
@@ -104,7 +104,7 @@ export const speciesDefinitions = {
   },
   bear: {
     name: 'bear',
-    diet: [forage.carrion, forage.fruit, forage.lichen, forage.nuts, forage.seeds],
+    diet: [forage.carrion, forage.fruit, forage.nuts, forage.seeds],
     drinks: [water.fresh],
     climate: {
       requires: ['air'],
@@ -213,5 +213,18 @@ export const speciesDefinitions = {
     attack: 0,
     fat: 0,
     size: sizes[sizeNames.tiny],
+  },
+  caribou: {
+    name: 'caribou',
+    diet: [forage.lichen],
+    drinks: [water.fresh],
+    climate: {
+      requires: ['air'],
+      excludes: ['hot', 'aquatic'],
+    },
+    speed: 3,
+    vision: 1,
+    fat: 20,
+    size: sizes[sizeNames.big],
   },
 };

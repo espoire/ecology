@@ -4,22 +4,22 @@ const biomes = {
   plains: {
     name: 'plains',
     forage: {
-      [forage.leaves]: 20,
-      [forage.grass]: 50,
-      [forage.seeds]: 20,
-      [forage.nuts]: 2,
-      [forage.fruit]: 5,
-      [forage.algae]: 0.05,
-      [forage.lichen]: 0.5,
-      [forage.wood]: 0.5,
+      [forage.leaves]: 2000,
+      [forage.grass]: 5000,
+      [forage.seeds]: 2000,
+      [forage.nuts]: 200,
+      [forage.fruit]: 500,
+      [forage.algae]: 5,
+      [forage.lichen]: 50,
+      [forage.wood]: 50,
       [forage.carrion]: 0,
     },
     water: {
-      [water.fresh]: 1,
+      [water.fresh]: 1000,
       [water.salt]: 0,
       rain: {
         frequency: 0.3,
-        intensity: 20,
+        intensity: 2000,
       },
     },
     climate: {

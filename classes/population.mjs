@@ -3,7 +3,7 @@
 import { forageDefinitions } from '../definitions/forage.mjs';
 import Settings from '../settings.mjs';
 import { clamp, formatLargeNumber, formatSmallNumber } from '../util/number.mjs';
-import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject } from '../util/object.mjs';
+import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject, sumObjectValues } from '../util/object.mjs';
 
 /**
  * Manages a population of a single species within the simulation.
@@ -52,8 +52,8 @@ export default class Population {
     return this.#count * this.#species.appetite;
   }
 
-  getTotalEnergyUpkeep() {
-    return this.#count * this.#species.getEnergyUpkeep();
+  getTotalEnergyUpkeep(populationCount = this.#count) {
+    return populationCount * this.#species.getEnergyUpkeep();
   }
 
   /**
@@ -79,23 +79,13 @@ export default class Population {
     return energyYield + waterYield/10;
   }
 
-  getMaxUnitsConsumable(forageType, totalAppetite = this.getTotalAppetite()) {
-    const digestion = forageDefinitions[forageType].digestion;
-    return totalAppetite / digestion;
-  }
-
   /**
    * @param {Object<string, number>} eatingPlan A collection of forage types and the amount of each type being eaten
    */
   getUnusedAppetite(eatingPlan) {
     const totalAppetite = this.getTotalAppetite();
-
-    let usedAppetite = 0;
-    for (const forageType in eatingPlan) {
-      usedAppetite += eatingPlan[forageType] * forageDefinitions[forageType].digestion;
-    }
-
-    let unusedAppetite = totalAppetite - usedAppetite;
+    const usedAppetite = sumObjectValues(eatingPlan);
+    const unusedAppetite = totalAppetite - usedAppetite;
     return unusedAppetite;
   }
 
@@ -120,7 +110,7 @@ export default class Population {
 
     /** @type {Object<string, number>} */
     const demand = mapObjectValues(normalizedScores, (forageType, score) => {
-      return score * this.getMaxUnitsConsumable(forageType);
+      return score * this.getTotalAppetite();
     });
 
     // Loop through, and reduce any bids which exceed the available stock
@@ -139,9 +129,9 @@ export default class Population {
       const filteredScores = filterObject(preferenceScores, (key) => uncappedForages.has(key));
       const normalizedScores = normalizeObject(filteredScores);
 
-      // Assign remaining appetite based on the new scores, but capped by the available forage and digestion limits
+      // Assign remaining appetite based on the new scores, but capped by the available forage and appetite limits
       const additionalDemand = mapObjectValues(normalizedScores, (forageType, score) => {
-        return score * this.getMaxUnitsConsumable(forageType, unusedAppetite);
+        return score * unusedAppetite;
       });
 
       for (const forageType in additionalDemand) demand[forageType] += additionalDemand[forageType];
@@ -327,7 +317,7 @@ export default class Population {
     }
   }
 
-  logExtinction(forageEaten, forageDemanded, fatEnergyUsed, remainingEnergyDeficit) {
+  logExtinction(forageEaten, forageDemanded, fatEnergyUsed, remainingEnergyDeficit, priorPopulation) {
     const species = this.#species;
 
     console.log();
@@ -340,8 +330,7 @@ export default class Population {
       const energyYield = species.getEnergyYield(food) * amount;
       console.log(`  ${amount} ${food}: ${energyYield.toFixed(1)} energy`);
     }
-    console.log('species.power:', species.power);
-    console.log('Energy spent on metabolism:', -this.getTotalEnergyUpkeep());
+    console.log('Energy spent on metabolism:', -this.getTotalEnergyUpkeep(priorPopulation));
     console.log('Energy from fat used:', fatEnergyUsed);
     console.log('remaining energy deficit after fat withdrawal:', remainingEnergyDeficit);
   console.log();

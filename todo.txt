@@ -2,7 +2,7 @@ TODO
 Predation
   Add carnivores that can eat other animals.
   Food value based on prey power + current fat, includes some water
-  Food digestion based on prey size
+  Meat units (e.g. appetite usage) based on prey size
   Violent deaths waste fat, subtract from reserves when they occur
   Speed: Predatior speed must be >= prey speed to catch them.
     Hunt cost based on the prey speed stat

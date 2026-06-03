@@ -17,12 +17,11 @@ export default class Species {
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
 
-  constructor({ name, diet, fecundity = 1, speed = 0, vision = 0, fat = 0, size = 1 }) {
+  constructor({ name, diet, fecundity = 1, speed = 0, fat = 0, size = 1 }) {
     this.#name = name;
     this.#diet = diet;
     this.#fecundity = fecundity;
     this.#speed = speed;
-    this.#vision = vision;
     this.#fat = fat;
     this.#size = size;
 
@@ -30,15 +29,24 @@ export default class Species {
   }
 
   initialize() {
-    const metabolism = (this.#diet.length -1); // + (this.#drinks.length -1);
+    const baseCost = 0.05;
+    const sizeCost = this.#size * 0.5;
 
-    const speedCost = this.#speed;
-    const visionCost = this.#vision ** 2;
-    const fatCost = Math.sqrt(this.#fat)/10;
+    let baseDietCosts = 0;
+    for (const forageType of this.#diet) {
+      const food = forageDefinitions[forageType];
+      baseDietCosts += food.adaptationCost;
+    }
+    const fractionOfDietCostWhichScalesWithSize = 0.8; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
+    const dietCosts = baseDietCosts * (fractionOfDietCostWhichScalesWithSize * this.#size + (1 - fractionOfDietCostWhichScalesWithSize));
+
+    const speedCost = this.#speed * 0.0; // Disabled until speed actually does anything
     const fecundityCost = (this.#fecundity - 1)/10;
-    const abilities = speedCost + visionCost + fatCost + fecundityCost;
-
-    this.#power = (metabolism + abilities) * this.#size;
+    const abilities = speedCost + fecundityCost;
+    
+    const fatCost = Math.sqrt(this.#fat)/200;
+    const total = baseCost + sizeCost + dietCosts + abilities * this.#size + fatCost; // Fat cost does not scale with size
+    this.#power = total / 3;
 
     if (isNaN(this.#power)) {
       console.log('Error: species power is NaN');
@@ -46,13 +54,12 @@ export default class Species {
       console.log('diet size:', this.#diet.length);
       console.log('abilities:');
       console.log('  speed:', this.#speed, speedCost);
-      console.log('  vision:', this.#vision, visionCost);
       console.log('  fat:', this.#fat, fatCost);
       console.log('  fecundity:', this.#fecundity, fecundityCost);
       console.log('size:', this.#size);
     }
 
-    this.#appetite = Math.ceil(100 * this.#size ** 0.9 + 1);
+    this.#appetite = Math.ceil(this.#size ** 0.9 + 0.01);
   }
 
   getInitialPopulation() {

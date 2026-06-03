@@ -17,7 +17,7 @@ export function runSim(env, pops, days = 10) {
   spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
   logSimStart(env, pops);
   for (let i = 0; i < days; i++) simulateDay(env, pops);
-  logSimEnd(env, pops);
+  logSimEnd(env, pops, days);
 }
 
 /**
@@ -89,9 +89,11 @@ function simulateDay(env, pops) {
     const pop = pops[i];
     if (pop.count === 0) continue;
 
+    const priorPopulation = pop.count;
+
     const forageEaten = actualConsumptionByPopulation[i];
     const { births, deaths, fatDelta, remainingEnergyDeficit } = pop.processConsumption(forageEaten);
-    if (pop.count <= 0 && Settings.log.extinctions) pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit);
+    if (pop.count <= 0 && Settings.log.extinctions) pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit, priorPopulation);
 
     if (deaths > 0) deathsByPopulation[i] = deaths;
   }
@@ -111,7 +113,7 @@ function spawnCarrionForStarvationDeaths(env, species, deaths) {
   env.food[forage.carrion] += carrionAdded;
 }
 
-const resourceMultiplier = 1000;
+const resourceMultiplier = 1;
 const spawnRandomness = () => bellRandom(0.5, 1);
 function spawnResources(environment, days = 1) {
   const plentifulness = spawnRandomness(); // Random multiplier for resource spawn each day to create good and bad days for the population
@@ -162,10 +164,12 @@ function logSimStart(env, pops) {
 /**
  * @param {object} env
  * @param {Population[]} pops
+ * @param {number} days
  */
-function logSimEnd(env, pops) {
+function logSimEnd(env, pops, days) {
   console.log();
   console.log('Simulation complete.');
+  console.log(`${days} days simulated.`);
 
   console.log();
   console.log('Final food stocks:');
