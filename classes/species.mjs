@@ -47,15 +47,19 @@ export default class Species {
     const fractionOfDietCostWhichScalesWithSize = 0.8; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
     const dietCosts = baseDietCosts * (fractionOfDietCostWhichScalesWithSize * this.#size + (1 - fractionOfDietCostWhichScalesWithSize));
 
+    
+    const fractionOfArmorCostWhichScalesWithSize = 0.75; // Armor is relatively cheaper for larger animals
+    const baseArmorCost = this.#armor * 0.75; // Armor is innately cheaper than weapons
+    const armorCost = baseArmorCost * (fractionOfArmorCostWhichScalesWithSize * this.#size + (1 - fractionOfArmorCostWhichScalesWithSize));
+    
     const weaponsCost = this.#weapons;
-    const armorCost = this.#armor * 0.75;
     const speedCost = this.#speed;
     const fecundityCost = (this.#fecundity - 1)/10;
-    const abilitiesBaseCost = weaponsCost + armorCost + speedCost + fecundityCost;
+    const abilitiesBaseCost = weaponsCost + speedCost + fecundityCost;
     const abilitiesCost = abilitiesBaseCost * this.#size;
     
     const fatCost = Math.sqrt(this.#fat)/200;
-    const total = baseCost + sizeCost + dietCosts + abilitiesCost + fatCost; // Fat cost does not scale with size
+    const total = baseCost + sizeCost + dietCosts + armorCost + abilitiesCost + fatCost; // Fat cost does not scale with size
     this.#power = total / 3;
 
     if (isNaN(this.#power)) {

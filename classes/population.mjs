@@ -106,7 +106,7 @@ export default class Population {
     } else {
       satisfactionScore = 0.95 + 0.05 / satisfactionRatio; // Starts at 1.0 and goes down towards 0.99 slightly for very oversized kills
     }
-    satisfactionScore **= this.#species.getPickyness(); // More picky predators will be more sensitive to satisfaction ratio
+    satisfactionScore **= 2;
 
     const abundanceScore = (preyPopulation.#count / (this.#count + preyPopulation.#count)) ** 3; // Model "can I find this prey easily?" - if prey population is much larger than predator population, higher score, if much smaller, lower score
 

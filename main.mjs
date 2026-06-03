@@ -10,4 +10,4 @@ const population = species.map(s => new Population(s));
 const environment = Environment.generate(biome);
 
 const k = 1000;
-runSim(environment, population, 250);
+runSim(environment, population, 1*k);

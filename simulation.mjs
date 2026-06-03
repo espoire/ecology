@@ -127,6 +127,11 @@ function simulateDay(day, env, pops, foodChain) {
   //   Reduce appetite satisfaction proportionally (if they were also eating meat today)
   for (const [preyPop, deaths] of actualDeathsByPreyPopulation.entries()) {
     preyPop.applyPredationDeaths(deaths, populationStatuses[preyPop.index]);
+
+    if (preyPop.count <= 0 && Settings.log.extinctions) {
+      const mode = Settings.log.extinctions;
+      if (mode === 'terse') console.log(`- ${preyPop.species.name} went extinct on day ${day + 1} (predation)`);
+    }
   }
 
   // Register demands from population
@@ -198,7 +203,11 @@ function simulateDay(day, env, pops, foodChain) {
 
     const forageEaten = actualConsumptionByPopulation[i];
     const { births, deaths, fatDelta, remainingEnergyDeficit } = pop.processConsumption(forageEaten, populationStatuses[i]);
-    if (pop.count <= 0 && Settings.log.extinctions) pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit, priorPopulation);
+    if (pop.count <= 0 && Settings.log.extinctions) {
+      const mode = Settings.log.extinctions;
+      if (mode === 'verbose') pop.logExtinction(forageEaten, demands[i], -fatDelta, remainingEnergyDeficit, priorPopulation);
+      if (mode === 'terse') console.log(`- ${pop.species.name} went extinct on day ${day + 1} (starvation)`);
+    }
 
     if (deaths > 0) deathsByPopulation[i] = deaths;
   }
