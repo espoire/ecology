@@ -1,26 +1,31 @@
 import { forageDefinitions } from "../definitions/forage.mjs";
-import { clamp } from "../util/number.mjs";
+import { forage } from "../definitions/names.mjs";
+import { clamp, formatSmallNumber } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
 
 export default class Species {
   /** @type {string} */ #name;
   /** @type {string[]} */ #diet;
   /** @type {number} */ #fecundity = 1;
+  /** @type {number} */ #weapons = 0;
+  /** @type {number} */ #armor = 0;
   /** @type {number} */ #speed = 0;
-  /** @type {number} */ #vision = 0;
   /** @type {number} */ #fat = 0;
   /** @type {number} */ #size = 1;
 
   /** @type {number} */ #power;
   /** @type {number} */ #appetite;
 
+  get name() { return this.#name; }
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
 
-  constructor({ name, diet, fecundity = 1, speed = 0, fat = 0, size = 1 }) {
+  constructor({ name, diet, fecundity = 1, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1 }) {
     this.#name = name;
     this.#diet = diet;
     this.#fecundity = fecundity;
+    this.#weapons = weapons;
+    this.#armor = armor;
     this.#speed = speed;
     this.#fat = fat;
     this.#size = size;
@@ -40,12 +45,15 @@ export default class Species {
     const fractionOfDietCostWhichScalesWithSize = 0.8; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
     const dietCosts = baseDietCosts * (fractionOfDietCostWhichScalesWithSize * this.#size + (1 - fractionOfDietCostWhichScalesWithSize));
 
-    const speedCost = this.#speed * 0.0; // Disabled until speed actually does anything
+    const weaponsCost = this.#weapons;
+    const armorCost = this.#armor * 0.75;
+    const speedCost = this.#speed;
     const fecundityCost = (this.#fecundity - 1)/10;
-    const abilities = speedCost + fecundityCost;
+    const abilitiesBaseCost = weaponsCost + armorCost + speedCost + fecundityCost;
+    const abilitiesCost = abilitiesBaseCost * this.#size;
     
     const fatCost = Math.sqrt(this.#fat)/200;
-    const total = baseCost + sizeCost + dietCosts + abilities * this.#size + fatCost; // Fat cost does not scale with size
+    const total = baseCost + sizeCost + dietCosts + abilitiesCost + fatCost; // Fat cost does not scale with size
     this.#power = total / 3;
 
     if (isNaN(this.#power)) {
@@ -160,14 +168,7 @@ export default class Species {
    */
   getEnergyYield(forageType) {
     const food = forageDefinitions[forageType];
-    const baseEnergy = food.energy;
-
-    let searchPenalty = 1;
-    if (this.isMobile() && food.vision > this.#vision) {
-      searchPenalty += food.vision - this.#vision;
-    }
-
-    return baseEnergy / searchPenalty;
+    return food.energy;
   }
 
   /**
@@ -178,5 +179,47 @@ export default class Species {
    */
   getPickyness() {
     return 1; // TODO
+  }
+
+  /**
+   * @returns {{ able: boolean, reason?: string }} Whether this species can be a predator, and if not, the reasons why not.
+   */
+  canBePredator() {
+    if (!this.canEat(forage.carrion)) return { able: false, reason: "Cannot eat meat" }; // Meat-eating required to be a predator
+    if (this.#weapons <= 0) return { able: false, reason: "No weapons" }; // No weapons means no predation
+    return { able: true };
+  }
+
+  /**
+   * @param {Species} otherSpecies
+   * @returns {{ able: boolean, reason?: string }} Whether this species can prey upon the other species, and if not, the reasons why not.
+   */
+  canPreyUpon(otherSpecies) {
+    const canBePredator = this.canBePredator();
+    if (!canBePredator.able) return canBePredator;
+
+    if (this === otherSpecies) return { able: false, reason: "No cannibalism" }; // No cannibalism for now
+
+    const sizeRatio = this.#size / otherSpecies.#size;
+    const logSizeDifference = Math.log2(sizeRatio) / 2; // Being 4x bigger than the prey gives a +1 bonus, being 4x smaller gives a -1 penalty
+    const mySizeBonus = Math.max(0, logSizeDifference); // Being bigger than the prey helps
+    const preySizeBonus = Math.max(0, -logSizeDifference); // Being smaller than the prey hurts
+
+    // Weapons check: can I beat the prey's weapons+armor?
+    const myCombatPower = this.#weapons + mySizeBonus;
+    let preyCombatPower = otherSpecies.#weapons + otherSpecies.#armor;
+    if (preyCombatPower > 0) preyCombatPower += preySizeBonus; // Size does not matter if the prey has no defenses, but if it does, being bigger helps
+    if (myCombatPower <= preyCombatPower) return {
+      able: false,
+      reason: `Insufficient combat power: ${formatSmallNumber(myCombatPower)} (${this.#weapons} weapons + ${formatSmallNumber(mySizeBonus)} relative size) vs ${formatSmallNumber(preyCombatPower)} (${otherSpecies.#weapons} weapons + ${otherSpecies.#armor} armor + ${formatSmallNumber(preySizeBonus)} relative size)`,
+    };
+
+    // Speed check: can I catch the prey?
+    if (this.#speed < otherSpecies.#speed) return {
+      able: false,
+      reason: `Insufficient speed: ${this.#speed} vs ${otherSpecies.#speed}`,
+    };
+
+    return { able: true };
   }
 }

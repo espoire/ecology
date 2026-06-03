@@ -2,7 +2,8 @@ const Settings = {
   log: {
     energyDeficits: false,
     deaths: false,
-    extinctions: true,
+    extinctions: false,
+    foodChain: true,
   },
 };
 

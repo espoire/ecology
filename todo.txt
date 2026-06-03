@@ -1,15 +1,9 @@
 TODO
 Predation
-  Add carnivores that can eat other animals.
   Food value based on prey power + current fat, includes some water
   Meat units (e.g. appetite usage) based on prey size
   Violent deaths waste fat, subtract from reserves when they occur
-  Speed: Predatior speed must be >= prey speed to catch them.
-    Hunt cost based on the prey speed stat
   Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
-  Attack:
-    Predator: Must be >= prey armor AND > prey attack to eat them.
-    Prey: Adds hunt cost for predator.
   Venom: boolean trait, as predator adds extra Attack (unless prey has venom resistance trait).
     As prey, cannot be eaten by predators without venom resistance trait.
     Substantial metabolic cost

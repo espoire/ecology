@@ -1,3 +1,4 @@
+import FoodChain from "./classes/food-chain.mjs";
 import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
@@ -14,6 +15,8 @@ import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
  * @param {number} days 
  */
 export function runSim(env, pops, days = 10) {
+  const foodChain = new FoodChain(pops.map(pop => pop.species));
+  
   spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
   logSimStart(env, pops);
   for (let i = 0; i < days; i++) simulateDay(env, pops);
