@@ -171,4 +171,4 @@ const biomes = {
   },
 };
 
-export const biome = biomes.tundra;
+export const biome = biomes.plains;

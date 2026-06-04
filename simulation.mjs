@@ -3,7 +3,7 @@ import { forageDefinitions } from "./definitions/forage.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
 import { sumMapValues } from "./util/map.mjs";
-import { clamp, formatSmallNumber } from "./util/number.mjs";
+import { clamp, formatLargeNumber, formatSmallNumber } from "./util/number.mjs";
 import { filterObject, mapObjectValues, normalizeObject } from "./util/object.mjs";
 import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
 import fs from 'node:fs';
@@ -19,7 +19,6 @@ import fs from 'node:fs';
 export function runSim(env, pops, days = 10) {
   const foodChain = new FoodChain(pops.map(pop => pop.species));
 
-  spawnResources(env, 1); // Spawn an initial week's worth of resources so populations have something to eat on day 1
   _initTimeSeriesLog(env, pops);
   logSimStart(env, pops);
   for (let i = 0; i < days; i++) {
@@ -41,7 +40,7 @@ function simulateDay(day, env, pops, foodChain) {
   spawnResources(env);
 
   // Get predation plans
-  const predationPlans = pops.map(pop => pop.getPredationDemands(pops, foodChain));
+  const predationPlans = pops.map(pop => pop.getPredationDemands(day, pops, foodChain));
 
   // Sum total demand by prey population across predators
   const totalDemandByPreyPopulation = new Map();
@@ -71,18 +70,21 @@ function simulateDay(day, env, pops, foodChain) {
 
   // Loop through BY PREY POPULATION to assign kills, going in least-satisfaction to most-satisfaction order, filling bids in most-demanding-predator-first order, to model predators competing for prey
   const preyPopsBySatisfaction = [...satisfactionByPreyPopulation.entries()].sort((a, b) => a[1] - b[1]); // Sort prey populations by satisfaction, lowest first
-  for (const [preyPop, satisfaction] of preyPopsBySatisfaction) {
-    let preyCount = preyPop.count;
+  for (const [prey, satisfaction] of preyPopsBySatisfaction) {
+    if (!prey.isPresent(day)) continue; // Skip prey populations that aren't present today
+    let preyCount = prey.count;
 
     // Get all predators that want this prey population
     const predatorPops = predationPlans
       .map((plan, index) => ({ plan, index }))
-      .filter(({ plan }) => plan.has(preyPop))
-      .sort((a, b) => a.plan.get(preyPop) - b.plan.get(preyPop)); // Sort predators by demand for this prey population, highest first
+      .filter(({ plan }) => plan.has(prey))
+      .sort((a, b) => b.plan.get(prey) - a.plan.get(prey)); // Sort predators by demand for this prey population, highest first
 
     for (const { plan, index } of predatorPops) {
-      const demand = plan.get(preyPop); // How much this predator population wants to kill from this prey population
-      const satisfiedDemand = demand * satisfaction; // How much of that demand can actually be satisfied based on prey population availability
+      const predators = pops[index];
+      const demand = plan.get(prey); // How much this predator population wants to kill from this prey population
+      const canFind = prey.getHuntSuccessRate();
+      const satisfiedDemand = demand * satisfaction * canFind; // How much of that demand can actually be satisfied based on prey population availability and predator's ability to find prey
       const baseKills = roundRandom(satisfiedDemand); // Base kills is the satisfied demand rounded to a whole number, with some randomness
 
       let kills = baseKills;
@@ -92,9 +94,9 @@ function simulateDay(day, env, pops, foodChain) {
       if (kills > killQuota) kills = killQuota; // Can't kill more than the predator population's kill quota
 
       actualKillsByPredatorPopulation[index] ??= new Map();
-      actualKillsByPredatorPopulation[index].set(preyPop, kills);
+      actualKillsByPredatorPopulation[index].set(prey, kills);
 
-      actualDeathsByPreyPopulation.set(preyPop, (actualDeathsByPreyPopulation.get(preyPop) ?? 0) + kills);
+      actualDeathsByPreyPopulation.set(prey, (actualDeathsByPreyPopulation.get(prey) ?? 0) + kills);
       preyCount -= kills;
       killQuotas[index] -= kills;
     }
@@ -142,6 +144,7 @@ function simulateDay(day, env, pops, foodChain) {
 
   /** @type {Object<string, number>[]} Where index corresponds to population index */
   const demands = pops.map((pop, i) => {
+    if (!pop.isPresent(day)) return {}; // Skip populations that aren't present today
     populationStatuses[i] ??= { energyGained: 0, waterGained: 0, appetiteSatisfied: 0 }; // Ensure population status exists for this population, even if they had no predation activity today
     return pop.getForageDemands(env.food, populationStatuses[i]);
   });
@@ -197,7 +200,7 @@ function simulateDay(day, env, pops, foodChain) {
   const deathsByPopulation = [];
   for (let i = 0; i < pops.length; i++) {
     const pop = pops[i];
-    if (pop.count === 0) continue;
+    if (!pop.isPresent(day)) continue;
 
     const priorPopulation = pop.count;
 
@@ -220,6 +223,11 @@ function simulateDay(day, env, pops, foodChain) {
   rotFoodSupply(env);
 }
 
+/**
+ * @param {object} env
+ * @param {Species} species
+ * @param {number} deaths
+ */
 function spawnCarrionForStarvationDeaths(env, species, deaths) {
   if (deaths <= 0) return;
 
@@ -228,24 +236,24 @@ function spawnCarrionForStarvationDeaths(env, species, deaths) {
 }
 
 const resourceMultiplier = 1;
-const spawnRandomness = () => bellRandom(0.5, 1);
-function spawnResources(environment, days = 1) {
+const spawnRandomness = () => bellRandom(0.05, 1);
+function spawnResources(environment, multiplier = 1) {
   const plentifulness = spawnRandomness(); // Random multiplier for resource spawn each day to create good and bad days for the population
 
   // Regenerate resources
   for (const key in environment.biome.forage) {
     const roll = spawnRandomness();
-    const spawnAmount = Math.max(0, environment.biome.forage[key] * days * plentifulness * roll * resourceMultiplier);
+    const spawnAmount = Math.max(0, environment.biome.forage[key] * multiplier * plentifulness * roll * resourceMultiplier);
     environment.food[key] += spawnAmount;
   }
   for (const key in water) {
     const roll = spawnRandomness();
-    const spawnAmount = Math.max(0, environment.biome.water[key] * days * plentifulness * roll * resourceMultiplier);
+    const spawnAmount = Math.max(0, environment.biome.water[key] * multiplier * plentifulness * roll * resourceMultiplier);
     environment.water[key] += spawnAmount;
   }
 
   // Check for rain
-  for (let i = 0; i < days; i++) {
+  for (let i = 0; i < multiplier; i++) {
     if (Math.random() < environment.biome.water.rain.frequency) {
       const roll = spawnRandomness();
       const spawnAmount = Math.max(0, environment.biome.water.rain.intensity * plentifulness * roll * resourceMultiplier);
@@ -260,22 +268,34 @@ function rotFoodSupply(environment) {
   { inPlace: true });
 }
 
+/**
+ * @param {object} env
+ * @param {Population[]} pops
+ */
 function logSimStart(env, pops) {
+  let loggedAnything = false;
+
   if (Settings.log.initialPopulations) {
     console.log();
     console.log('Initial population:');
     for (const pop of pops) pop.logState('- ');
+    loggedAnything = true;
   }
   
-  console.log();
-  console.log('Environment:');
-  console.log(`  Biome: ${env.biome.name}`);
-  console.log('  Forage:');
-  logForageStocks(env, '  ');
+  if (Settings.log.initialEnvironment) {
+    console.log();
+    console.log('Environment:');
+    console.log(`  Biome: ${env.biome.name}`);
+    console.log('  Forage:');
+    logForageStocks(env, '  ');
+    loggedAnything = true;
+  }
   
-  console.log();
-  console.log('---');
-  console.log();
+  if (loggedAnything) {
+    console.log();
+    console.log('---');
+    console.log();
+  }
 }
 
 /**
@@ -349,31 +369,90 @@ function _logPredationMaybe(day, pops, actualKillsByPredatorPopulation, actualDe
 }
 
 let timeSeries;
+let suppressTimeSeriesLog = false;
 function _initTimeSeriesLog(env, pops) {
+  if (Settings.export.disable) {
+    suppressTimeSeriesLog = true;
+    return;
+  }
+
   timeSeries = [];
 
-  timeSeries.push([
-    'day',
-    // ...Object.keys(forage),
-    ...pops.map(pop => pop.species.name),
-  ]);
+  const headers = [];
+  if (Settings.export.includeDayNumber) headers.push('day');
+  if (Settings.export.forage) {
+    headers.push(...Object.keys(env.food));
+  }
+  if (Settings.export.species) {
+    headers.push(...pops.map(pop => pop.species.name));
+  }
+
+  if (headers.length === 0) {
+    suppressTimeSeriesLog = true;
+    return;
+  }
+
+  timeSeries.push(headers);
 }
 
+/**
+ * 
+ * @param {number} day
+ * @param {object} env
+ * @param {Population[]} pops
+ * @returns 
+ */
 function _updateTimeSeriesLog(day, env, pops) {
-  timeSeries.push([
-    day,
-    // ...Object.values(env.food),
-    ...pops.map(pop => {
-      let logPower = Math.log2(pop.count * pop.species.power);
-      if (logPower < 0) logPower = 0;
-      return formatSmallNumber(logPower);
-    }),
-  ]);
+  if (suppressTimeSeriesLog) return;
+
+  const row = [];
+
+  if (Settings.export.includeDayNumber) row.push(day);
+
+  if (Settings.export.forage) {
+    for (const forageType in env.food) {
+      const amount = env.food[forageType];
+      row.push(amount);
+    }
+  }
+
+  if (Settings.export.species) {
+    for (const pop of pops) {
+      if (!pop.isPresent(day)) {
+        row.push(''); // Blank if population isn't present yet
+        continue;
+      }
+
+      let value;
+      if (Settings.export.species === 'count') {
+        value = pop.count + pop.getAvailableFatEnergy() / pop.species.getBirthEnergyCost(); // Count includes available fat energy converted to population count equivalent, to give a sense of total survivability of the population including fat stores
+      } else if (Settings.export.species === 'total-energy') {
+        value = pop.getTotalPower() + pop.getAvailableFatEnergy();
+      }
+
+      if (Settings.export.logScale) {
+        value = _mapToLogScale(value);
+      } else {
+        row.push(value.toFixed(1));
+      }
+
+      row.push(value);
+    }
+  }
+
+  timeSeries.push(row);
+}
+
+function _mapToLogScale(value) {
+  const logValue = Math.log2(value);
+  return logValue < 0 ? 0 : formatSmallNumber(logValue, 4);
 }
 
 function _exportTimeSeriesTsv() {
-  const file = './out/log.tsv';
-  const content = timeSeries.map(row => row.join('\t')).join('\n');
+  if (suppressTimeSeriesLog) return;
+
+  const file = './out/log.csv';
+  const content = timeSeries.map(row => row.join(',')).join('\n');
   fs.writeFileSync(file, content, err => {
     if (err) console.error('Error writing time series log to file:', err);
   });

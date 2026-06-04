@@ -2,6 +2,7 @@ import Constants from "../constants.mjs";
 import { forageDefinitions } from "../definitions/forage.mjs";
 import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
+import { getSizeMetadata, maxSizeTier } from "../definitions/sizes.mjs";
 import Settings from "../settings.mjs";
 import { first, sum, tail } from "../util/array.mjs";
 import { clamp, formatSmallNumber } from "../util/number.mjs";
@@ -26,6 +27,7 @@ export default class Species {
   /** @type {number} */ #appetite;
 
   get name() { return this.#name; }
+  get size() { return this.#size; }
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
 
@@ -65,20 +67,18 @@ export default class Species {
   }
 
   initialize() {
-    const baseCost = 0.2;
-    const sizeCost = this.#size * 0.8;
+    const baseCost = 0.05;
+    const sizeCost = this.#size * 0.95;
 
     const sortedDiet = this.#diet.sort(sortBy(f => forageDefinitions[f].adaptationCost, 'descending'));
     const firstDiet = first(sortedDiet);
     const restDiets = tail(-1, sortedDiet);
 
     const cost = ((forageType) => forageDefinitions[forageType].adaptationCost);
-
-    const fractionOfFirstDietCostWhichScalesWithSize = 0.9;
-    const firstDietCost = cost(firstDiet) * (fractionOfFirstDietCostWhichScalesWithSize * this.#size + (1 - fractionOfFirstDietCostWhichScalesWithSize));
+    const firstDietCost = cost(firstDiet) * this.#size;
     
     const additionalDietDiscount = 0.75;
-    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.7; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
+    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.99; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
     const additionalDietBaseCost = sum(restDiets.map(cost));
     const additionalDietCosts = additionalDietBaseCost * additionalDietDiscount * (fractionOfAdditionalDietCostWhichScalesWithSize * this.#size + (1 - fractionOfAdditionalDietCostWhichScalesWithSize));
     const dietCosts = firstDietCost + additionalDietCosts;
@@ -144,7 +144,8 @@ export default class Species {
   }
 
   getInitialPopulation() {
-    const energyBudget = 500;
+    let energyBudget = 1000;
+    if (this.canBePredator()) energyBudget /= 2; // Carnivores start at a lower population
 
     let population = Math.floor(energyBudget / this.getBirthEnergyCost());
     if (population < 2) population = 2; // Minimum population of 2 to allow for reproduction
@@ -162,10 +163,25 @@ export default class Species {
 
     const { population, leftoverEnergy } = this.getInitialPopulation();
     const totalFatCapacity = population * this.getFatCapacityPerMember();
-    const freeStartingFat = 0.1;
+    let freeStartingFat = 0.1;
+    if (this.canBePredator()) freeStartingFat += 0.5; // Carnivores arrive with some fat on them
     const fatPercentage = leftoverEnergy / totalFatCapacity + freeStartingFat;
 
     return clamp(fatPercentage, 0, 1);
+  }
+
+  /**
+   * @returns {number} The day number on which this species should enter the simulation
+   */
+  getAppearanceDelay() {
+    if (!this.canBePredator().able) return 0; // Herbivores all start on day 0
+
+    // Predators start later, to give herbivores a chance to bootstrap up to more realistic populations, so predators don't all instantly starve
+    const maxDelay = 20;
+    const size = getSizeMetadata(this.#size);
+    const sizeTeir = size.index;
+    const delay = Math.round(sizeTeir / maxSizeTier * maxDelay);
+    return delay;
   }
 
   toString() {
@@ -209,17 +225,9 @@ export default class Species {
     return this.#fecundity / Math.sqrt(this.#size);
   }
 
-  /**
-   * @return {number} energy provided by eating 1 member of this species as food for predators
-   */
-  getFoodValue() {
-    const predationEfficiency = 3/4;
-    return this.getBirthEnergyCost() * predationEfficiency;
-  }
-
   getCarrionPerStarvationDeath() {
     const starvationCarrionEfficiency = 4/5;
-    return this.getFoodValue() * starvationCarrionEfficiency / forageDefinitions.carrion.energy;
+    return this.getBaseMeatVolumeWithoutFat() * starvationCarrionEfficiency; // And then it drops as carrion instead of meat, losing another ~half and most of the water.
   }
 
   /**

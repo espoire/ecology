@@ -1,10 +1,10 @@
 TODO
-
 Alter predation: redesign hunt failure rate.
   Adjust the "how hard is this prey to find" term such that kill rate meaningfully declines from cap BEFORE predators > prey.
-  For now, aim for "prey/predator = 5" being the ratio at and above which max kill rate is achieved.
-  Make the 5 constant from above tuneable. "cover"
-  Attach the constant to individual biomes.
+  "Uncap" hunt bids, new soft cap is preyCount / sucessRate.
+  No unallocated bids: if all prey options saturate, allocate the remaining bids proportionally (to original weights, NOT amount already allocated).
+  Apply the "No unallocated bids" change also to forage bidding.
+  Attach the "cover" constant to individual biomes.
   Tune the "cover" parameter per biome. Should be higher in biomes which would have many places to hide.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
@@ -13,9 +13,8 @@ Add tunable 'target-fat' parameter [0 .. 1] default 0.5
     Effective target scales down for tiny populations
       Compute ratio = birth-cost / total-fat-capacity, clamp to [0 .. 1]
       Multiply target * (1 - ratio)
+Refactor species #power back to being the daily upkeep
 Predation
-  Maybe add a "stealth" stat that makes it harder for predators to find them, and "vision" stat for predators opposes?
-    If so, stealth-based predators can bypass the speed contest via winning a stealth contest instead
   Wasted meat drops as meat first, degrades to carrion end-of-day
 Multi-biome systems with emigration
   Mobile species may wander between active biomes, based on biome adjacency graph and species' mobility.

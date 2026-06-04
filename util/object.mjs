@@ -111,3 +111,18 @@ export function dereference(obj, key, tryForNonObject = false) {
 
   return obj;
 }
+
+/**
+ * @param {object} obj
+ * @returns {object} New object with keys and values swapped. Duplicate value collisions resolve by keeping the last key in key-iteration order with that value.
+ */
+export function invertObject(obj) {
+  const inverted = {};
+
+  for (const key in obj) {
+    const value = obj[key];
+    inverted[value] = key;
+  }
+
+  return inverted;
+}

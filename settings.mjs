@@ -5,11 +5,19 @@ const Settings = {
     energyDeficits: false,
     deaths: false,
     extinctions: false, // 'verbose' | 'terse' | false
-    initialPopulations: false,
-    extinctPopulationsInFinalRankings: false,
+    initialPopulations: true,
+    initialEnvironment: false,
+    extinctPopulationsInFinalRankings: true,
     foodChain: false,
     predation: false,
-    speciesPower: ['gnat', 'bear'], // Set to a species name to log detailed power calculation for that species whenever it's initialized or re-initialized
+    speciesPower: [], // Set to a species name to log detailed power calculation for that species whenever it's initialized or re-initialized
+  },
+  export: {
+    disable: false,
+    includeDayNumber: false,
+    species: 'total-energy', // 'count' | 'total-energy' | false
+    forage: false, // boolean
+    logScale: true, // boolean
   },
 };
 

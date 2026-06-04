@@ -31,15 +31,15 @@ export function formatLargeNumber(num, decimalPlaces = 1) {
  * Auto-increases the number of decimal places for very small numbers, so that the result is never just '0.0' or similar.
  * 
  * @param {number} num
- * @param {number} [decimalPlaces]
+ * @param {number} [sigfigs]
  * @return {string}
  */
-export function formatSmallNumber(num, decimalPlaces = 1, trimTrailingZeros = true) {
+export function formatSmallNumber(num, sigfigs = 2, trimTrailingZeros = true) {
   if (num === 0) return '0';
 
   const absNum = Math.abs(num);
   const magnitude = Math.floor(Math.log10(absNum));
-  const adjustedDecimalPlaces = Math.max(decimalPlaces, -magnitude);
+  const adjustedDecimalPlaces = sigfigs - magnitude - 1;
 
   const result = num.toFixed(Math.max(0, adjustedDecimalPlaces));
   return trimTrailingZeros ? result.replace(/\.0+$|0+$/, '') : result;

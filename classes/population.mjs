@@ -28,6 +28,16 @@ export default class Population {
     this.#fat = species.getInitialFatPercentage() * this.getTotalFatEnergyCapacity();
   }
 
+  isExtinct() {
+    return this.#count <= 0;
+  }
+
+  isPresent(day) {
+    if (this.isExtinct()) return false;
+    const delay = this.#species.getAppearanceDelay();
+    return day >= delay;
+  }
+
   getFatRatio() {
     if (!this.#species.canStoreFat()) return 0;
     return this.#fat / this.getTotalFatEnergyCapacity();
@@ -89,6 +99,12 @@ export default class Population {
     return energyYield + waterYield/10;
   }
 
+  getHuntSuccessRate() {
+    const cover = Constants.predation.cover / this.#species.size; // Larger species are easier to hunt, so they effectively have less "cover" against predation
+    const rate = this.#count / (this.#count + cover);
+    return rate;
+  }
+
   /**
    * @param {Population} preyPopulation
    * @returns {number} score for the given prey population, where higher is more preferred, usually in the range [0 .. approximately 1]
@@ -96,7 +112,8 @@ export default class Population {
    */
   getScoreForPrey(preyPopulation) {
     const myHungerPerMember = this.#species.appetite;
-    const meatVolume = preyPopulation.getMeatVolumeForKill();
+    const meatVolume = preyPopulation.getMeatVolumeForKill() *
+        preyPopulation.getHuntSuccessRate(); // Include expected failed hunts for low-pop prey, which reduces the effective meat gained per kill attempt
 
     const satisfactionRatio = meatVolume / myHungerPerMember;
 
@@ -108,11 +125,9 @@ export default class Population {
     }
     satisfactionScore **= 2;
 
-    const abundanceScore = (preyPopulation.#count / (this.#count + preyPopulation.#count)) ** 3; // Model "can I find this prey easily?" - if prey population is much larger than predator population, higher score, if much smaller, lower score
+    const randomFactor = bellRandom(0.1, 1); // Add some randomness to model "which specific targets did the predator encounter today" luck
 
-    const randomFactor = bellRandom(0.1, 1); // Add some randomness to model "could the predator actually find these today" luck
-
-    return satisfactionScore * abundanceScore * randomFactor;
+    return satisfactionScore * randomFactor;
   }
 
   getMeatVolumeForKill() {
@@ -145,22 +160,23 @@ export default class Population {
   }
 
   /**
+   * @param {number} day The simulation day index, used to check if populations have appeared yet based on their appearance delay
    * @param {Population[]} preyPops
    * @param {FoodChain} foodChain
    * @returns {Map<Population, number>} (fractional) kill requests by prey population
    */
-  getPredationDemands(preyPops, foodChain) {
-    if (!foodChain.isPredator(this.#species)) return new Map(); // Not a predator, so no predation demands
+  getPredationDemands(day, preyPops, foodChain) {
+    const isPredator = foodChain.isPredator(this.#species);
+    const isPresent = this.isPresent(day);
+    if (!isPresent || !isPredator) return new Map(); // Not present or not a predator, so no predation demands
 
     // Step 1: assign scores to predation options
-    const preyPopulations = foodChain.getPreyListForPredator(this.#species).map(preySpecies => preyPops.find(pop => pop.#species === preySpecies)).filter(pop => pop && pop.#count > 0);
+    const preyPopulations = foodChain.getPreyListForPredator(this.#species).map(preySpecies => preyPops.find(pop => pop.#species === preySpecies)).filter(pop => pop && pop.isPresent(day));
     const predationScores = mapArrayValuesToMap(preyPopulations, preyPop => this.getScoreForPrey(preyPop));
-    predationScores.set('miss', Constants.predation.missWeight); // Add a "miss" option to model the chance that a predator fails to catch anything, which will waste a kill slot, but not affect appetite or energy directly
 
     // Step 2: assign kill-request amounts, totaling <= kill quota, based on predation scores
     const killQuota = this.getPredationKillQuota(); // Max 1 kill per predator member
     const normalized = normalizeMap(predationScores);
-    normalized.delete('miss'); // Remove the "miss" option for the next step, since it doesn't correspond to an actual prey population
     const killRequests = mapMapValues(normalized, score => score * killQuota);
 
     return killRequests;
@@ -413,10 +429,11 @@ export default class Population {
   // #region Logging
 
   logState(prefix = '') {
+    const powerText = `${formatSmallNumber(this.#species.power)} P, ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep`;
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
-    console.log(`${prefix}${this.#species} (${formatSmallNumber(this.#species.power)} P / ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep, appetite ${formatSmallNumber(this.#species.appetite)}): \t${countText}${fatText}`);
+    console.log(`${prefix}${this.#species} (${powerText}, appetite ${formatSmallNumber(this.#species.appetite)}, starts day ${this.#species.getAppearanceDelay()}): \t${countText}${fatText}`);
   }
 
   logFinalState(prefix = '') {
