@@ -416,7 +416,7 @@ export default class Population {
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
-    console.log(`${prefix}${this.#species} (power ${formatSmallNumber(this.#species.power)}, appetite ${formatSmallNumber(this.#species.appetite)}): \t${countText}${fatText}`);
+    console.log(`${prefix}${this.#species} (${formatSmallNumber(this.#species.power)} P / ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep, appetite ${formatSmallNumber(this.#species.appetite)}): \t${countText}${fatText}`);
   }
 
   logFinalState(prefix = '') {
@@ -426,7 +426,7 @@ export default class Population {
       const fatPercent = this.getFatPercentage();
       const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(0)}% fat` : '';
       const countText = formatLargeNumber(this.#count);
-      console.log(`${prefix}${this.#species}: \t${countText}${fatText} \t- total power ${formatLargeNumber(this.getTotalPower())}`);
+      console.log(`${prefix}${this.#species}: \t${countText}${fatText} \t- total ${formatLargeNumber(this.getTotalPower())} P`);
     }
   }
 
@@ -434,7 +434,7 @@ export default class Population {
     console.log(`Population '${this.#species}' has energy deficit of ${energyDeficit.toFixed(1)}`);
     console.log(`  Consumed:`);
     for (const forageType in eatenForages) {
-      console.log(`    ${forageType}: ${eatenForages[forageType].toFixed(1)} (per each: energy ${this.#species.getEnergyYield(forageType)}, water ${forageDefinitions[forageType].water ?? 0})`);
+      console.log(`    ${forageType}: ${eatenForages[forageType].toFixed(1)} (per each: ${this.#species.getEnergyYield(forageType)} E, ${forageDefinitions[forageType].water ?? 0} water)`);
     }
   }
 

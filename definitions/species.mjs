@@ -85,7 +85,7 @@ export const speciesDefinitions = {
   },
   slug: {
     name: 'slug',
-    diet: [forage.leaves, forage.wood, forage.carrion, forage.fruit],
+    diet: [forage.leaves, forage.carrion, forage.fruit],
     drinks: [water.fresh],
     climate: {
       requires: ['air'],

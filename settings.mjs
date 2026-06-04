@@ -1,11 +1,18 @@
+import { ensureArray } from "./util/array.mjs";
+
 const Settings = {
   log: {
     energyDeficits: false,
     deaths: false,
-    extinctions: 'terse', // 'verbose' (log every extinction with details), 'terse' (log just the date/name of the extinct species), false (don't log extinctions at all)
-    foodChain: true,
+    extinctions: false, // 'verbose' | 'terse' | false
+    initialPopulations: false,
+    extinctPopulationsInFinalRankings: false,
+    foodChain: false,
     predation: false,
+    speciesPower: ['gnat', 'bear'], // Set to a species name to log detailed power calculation for that species whenever it's initialized or re-initialized
   },
 };
+
+Settings.log.speciesPower = ensureArray(Settings.log.speciesPower);
 
 export default Settings;

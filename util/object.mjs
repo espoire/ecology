@@ -80,3 +80,34 @@ export function mapArrayValuesToObject(arr, mapFn) {
 
   return obj;
 }
+
+/** Fetches an element from within a POJO object.
+ * Similar to using the syntax obj[key], except if
+ * key contains one or more dots (.) then it will
+ * be treated as nested keys within a multi-level
+ * object. If any intermediate keys are nullish,
+ * that nullish value will be returned early.
+ *
+ * @param {object} obj
+ *      The object from which to retrieve a key.
+ * @param {!string} key
+ *      The key to retrieve from the object.
+ * @param {boolean} [tryForNonObject=false]
+ *      Optional ovverride to attempt dereference
+ *      on non-object types (e.g. a class and its
+ *      static members, typeof class === 'function').
+ *
+ * @return {any}
+ */
+export function dereference(obj, key, tryForNonObject = false) {
+  if (!obj || (typeof obj !== 'object' && !tryForNonObject)) return obj;
+  if (!key.includes('.')) return obj[key];
+
+  const tokens = key.split('.');
+  for (const token of tokens) {
+    obj = obj[token];
+    if (obj == null) return obj;
+  }
+
+  return obj;
+}

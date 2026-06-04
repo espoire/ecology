@@ -2,8 +2,11 @@ import Constants from "../constants.mjs";
 import { forageDefinitions } from "../definitions/forage.mjs";
 import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
+import Settings from "../settings.mjs";
+import { first, sum, tail } from "../util/array.mjs";
 import { clamp, formatSmallNumber } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
+import { sortBy } from "../util/sort.mjs";
 
 export default class Species {
   /** @type {string} */ #name;
@@ -62,53 +65,79 @@ export default class Species {
   }
 
   initialize() {
-    const baseCost = 0.05;
-    const sizeCost = this.#size * 0.5;
+    const baseCost = 0.2;
+    const sizeCost = this.#size * 0.8;
 
-    let baseDietCosts = 0;
-    for (const forageType of this.#diet) {
-      const food = forageDefinitions[forageType];
-      baseDietCosts += food.adaptationCost;
-    }
-    const fractionOfDietCostWhichScalesWithSize = 0.8; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
-    const dietCosts = baseDietCosts * (fractionOfDietCostWhichScalesWithSize * this.#size + (1 - fractionOfDietCostWhichScalesWithSize));
+    const sortedDiet = this.#diet.sort(sortBy(f => forageDefinitions[f].adaptationCost, 'descending'));
+    const firstDiet = first(sortedDiet);
+    const restDiets = tail(-1, sortedDiet);
 
-    const fractionOfVenomCostWhichScalesWithSize = 0.9; // Venom and resistance is somewhat cheaper for larger animals
-    const baseVenomCost = (this.#venom ? 2 : 0) + (this.#antivenom ? 2 : 0);
-    const venomCost = baseVenomCost * (fractionOfVenomCostWhichScalesWithSize * this.#size + (1 - fractionOfVenomCostWhichScalesWithSize));
+    const cost = ((forageType) => forageDefinitions[forageType].adaptationCost);
 
-    const fractionOfFlyingCostWhichScalesWithSize = 1.5; // Flying is much more expensive for larger animals
-    const baseFlyingCost = this.#flying ? 1.5 : 0; // Flying is cheaper than an equivalent amount of speed
-    const flyingCost = baseFlyingCost * (fractionOfFlyingCostWhichScalesWithSize * this.#size + (1 - fractionOfFlyingCostWhichScalesWithSize));
+    const fractionOfFirstDietCostWhichScalesWithSize = 0.9;
+    const firstDietCost = cost(firstDiet) * (fractionOfFirstDietCostWhichScalesWithSize * this.#size + (1 - fractionOfFirstDietCostWhichScalesWithSize));
     
-    const fractionOfArmorCostWhichScalesWithSize = 0.75; // Armor is relatively cheaper for larger animals
-    const baseArmorCost = this.#armor * 0.75; // Armor is innately cheaper than weapons
+    const additionalDietDiscount = 0.75;
+    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.7; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
+    const additionalDietBaseCost = sum(restDiets.map(cost));
+    const additionalDietCosts = additionalDietBaseCost * additionalDietDiscount * (fractionOfAdditionalDietCostWhichScalesWithSize * this.#size + (1 - fractionOfAdditionalDietCostWhichScalesWithSize));
+    const dietCosts = firstDietCost + additionalDietCosts;
+
+    // This block noncausal, for debug logging only
+    const dietPresizeCost = cost(firstDiet) + additionalDietBaseCost * additionalDietDiscount;
+    
+    const baseFatCost = (this.#fat ** 0.8)/2;
+    const flyingFatCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay more for fat storage since it's extra weight to carry
+    const fatCost = baseFatCost * flyingFatCostMultiplier; // Fat cost does not scale with size
+
+    const weaponsCost = this.#weapons * 3 * this.#size;
+
+    const fractionOfArmorCostWhichScalesWithSize = 0.7; // Armor is relatively cheaper for larger animals
+    const baseArmorCost = this.#armor * 2; // Armor is innately cheaper than weapons
     const flyingArmorCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay way more for armor
     const armorCost = baseArmorCost * (fractionOfArmorCostWhichScalesWithSize * this.#size + (1 - fractionOfArmorCostWhichScalesWithSize)) * flyingArmorCostMultiplier;
-
-    const weaponsCost = this.#weapons;
-    const speedCost = this.#speed;
-    const fecundityCost = (this.#fecundity - 1)/10;
-    const reachCost = this.#reach ? 1 : 0; // Reach negates flying, and is cheaper than flying
-    const abilitiesBaseCost = weaponsCost + speedCost + fecundityCost + reachCost;
-    const abilitiesCost = abilitiesBaseCost * this.#size;
     
-    const baseFatCost = Math.sqrt(this.#fat)/200;
-    const flyingFatCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay more for fat storage since it's extra weight to carry
-    const fatCost = baseFatCost * flyingFatCostMultiplier;
+    // Flying gives a synergy bonus to speed, making it cheaper
+    const flyingSpeedSynergy = this.#flying ? 0.9 : 1;
+    // 0.9 chosen so that flying-predator almost-but-not-quite breaks even with reach-predator
+    // So that flying-predator dominats at speed > 3, reach dominates at speed < 2, and they're debatable at speed = 2 or 3
+    // (Predator speed 2: flying is more costly than reach, but you also get the flying defensive benefit, so it's not a clear-cut choice either way.)
+    const speedCost = this.#speed * 3 * flyingSpeedSynergy * this.#size;
 
-    const total = baseCost + sizeCost + dietCosts + armorCost + abilitiesCost + fatCost; // Fat cost does not scale with size
-    this.#power = total / 3;
+    const fecundityCost = (this.#fecundity - 1) * this.#size;
 
-    if (isNaN(this.#power)) {
-      console.log('Error: species power is NaN');
-      console.log('species:', this.#name);
-      console.log('diet size:', this.#diet.length);
-      console.log('abilities:');
-      console.log('  speed:', this.#speed, speedCost);
-      console.log('  fat:', this.#fat, baseFatCost);
-      console.log('  fecundity:', this.#fecundity, fecundityCost);
-      console.log('size:', this.#size);
+    const reachCost = (this.#reach ? 3 : 0) * this.#size; // Reach negates flying, and is cheaper than flying
+
+    const fractionOfVenomCostWhichScalesWithSize = 0.9; // Venom and resistance is somewhat cheaper for larger animals
+    const baseVenomCost = (this.#venom ? 6 : 0) + (this.#antivenom ? 5 : 0);
+    const venomCost = baseVenomCost * (fractionOfVenomCostWhichScalesWithSize * this.#size + (1 - fractionOfVenomCostWhichScalesWithSize));
+
+    const baseFlyingCost = this.#flying ? 4 : 0; // Flying is cheaper than an equivalent amount of speed
+    const flyingCost = baseFlyingCost * Math.max(this.#size, this.#size ** 2); // Flying scales dramatically with size
+    
+    const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost;
+    const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
+    this.#power = total;
+
+    if (isNaN(this.#power) || Settings.log.speciesPower.includes(this.#name)) {
+      console.log();
+      console.log('species:', this.#name, 'power:', formatSmallNumber(this.#power), 'P');
+      console.log('  upkeep:', formatSmallNumber(this.getEnergyUpkeep()), ' P');
+      console.log('  birth cost:', formatSmallNumber(this.getBirthEnergyCost()), ' E');
+      console.log('  starvation:', formatSmallNumber(this.getDeathEnergy()), ' E');
+      console.log();
+      console.log('  base:', formatSmallNumber(baseCost), 'E');
+      console.log('  size:', `${this.#size}  =  ${formatSmallNumber(sizeCost)} E`);
+      console.log('  diet:', `${firstDiet} (${cost(firstDiet)})`, restDiets.length ? ` + ${restDiets.map(f => `${f} (${cost(f)} * ${additionalDietDiscount})`).join(' + ')}` : '' ,` =  ${formatSmallNumber(dietPresizeCost)} E  =>  ${formatSmallNumber(dietCosts)} E after size scaling`);
+      if (this.#armor) console.log('  armor:', `${this.#armor} armor`, ` =  ${formatSmallNumber(armorCost)} E`);
+      if (this.#fat) console.log('  fat:', `${this.#fat} fat`, ` =  ${formatSmallNumber(fatCost)} E`);
+      if (this.#weapons) console.log('  weapons:', `${this.#weapons} weapons`, ` =  ${formatSmallNumber(weaponsCost)} E`);
+      if (this.#speed) console.log('  speed:', `${this.#speed} speed`, ` =  ${formatSmallNumber(speedCost)} E`);
+      if (this.#fecundity > 1) console.log('  fecundity:', `${this.#fecundity} fecundity`, ` =  ${formatSmallNumber(fecundityCost)} E`);
+      if (this.#reach) console.log('  reach: ', `${formatSmallNumber(reachCost)} E`);
+      if (this.#flying) console.log('  flying: ', `${formatSmallNumber(flyingCost)} E`);
+      if (this.#venom) console.log('  venom: ', `${formatSmallNumber(venomCost)} E`);
+      console.log();
     }
 
     this.#appetite = this.#size ** 0.9 + 0.01;
@@ -143,8 +172,16 @@ export default class Species {
     return this.#name;
   }
 
-  getEnergyUpkeep() {
+  getBirthEnergyCost() {
     return this.#power;
+  }
+
+  getEnergyUpkeep() {
+    return this.#power * Constants.energy.dailyUpkeepFactor;
+  }
+
+  getDeathEnergy() {
+    return this.getEnergyUpkeep() * Constants.energy.deathPowerDays; // Starvation occurs (probabilistically) when the species falls X many days' upkeep behind.
   }
 
   canStoreFat() {
@@ -163,13 +200,9 @@ export default class Species {
   getDeathsFromEnergyDeficit(energyDeficit, randomFn = Math.random) {
     if (energyDeficit <= 0) return 0; // No deficit, no deaths
 
-    const daysUpkeepBehind = energyDeficit / this.#power;
-    const deathFraction = daysUpkeepBehind / Constants.energy.deathPowerDays;
-    return roundRandom(deathFraction, randomFn);
-  }
-
-  getBirthEnergyCost() {
-    return this.#power * 8;
+    const deathEnergy = this.getDeathEnergy();
+    const deaths = energyDeficit / deathEnergy;
+    return roundRandom(deaths, randomFn);
   }
 
   getFecundityMultiplier() {

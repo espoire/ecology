@@ -261,9 +261,12 @@ function rotFoodSupply(environment) {
 }
 
 function logSimStart(env, pops) {
-  console.log('Initial population:');
-  for (const pop of pops) pop.logState('- ');
-
+  if (Settings.log.initialPopulations) {
+    console.log();
+    console.log('Initial population:');
+    for (const pop of pops) pop.logState('- ');
+  }
+  
   console.log();
   console.log('Environment:');
   console.log(`  Biome: ${env.biome.name}`);
@@ -291,11 +294,17 @@ function logSimEnd(env, pops, days) {
 
   console.log();
   console.log('Final populations:');
-  const sortedPopulations = pops.sort(sortByTotalPower);
-  for (const pop of sortedPopulations) pop.logFinalState('- ');
+  const sortedPopulations = pops.sort(sortByLivingThenByTotalPower);
+  const popsToLog = Settings.log.extinctPopulationsInFinalRankings ? sortedPopulations : sortedPopulations.filter(pop => pop.count > 0);
+  for (const pop of popsToLog) pop.logFinalState('- ');
 }
 
-function sortByTotalPower(a, b) {
+function sortByLivingThenByTotalPower(a, b) {
+  // Living populations come first
+  if (a.count > 0 && b.count === 0) return -1;
+  if (a.count === 0 && b.count > 0) return 1;
+
+  // Then by total power, highest first
   return b.getTotalPower() - a.getTotalPower();
 }
 
