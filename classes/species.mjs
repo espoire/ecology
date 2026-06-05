@@ -12,12 +12,13 @@ import { sortBy } from "../util/sort.mjs";
 export default class Species {
   /** @type {string} */ #name;
   /** @type {string[]} */ #diet;
+  /** @type {number} */ #size = 1;
   /** @type {number} */ #fecundity = 1;
   /** @type {number} */ #weapons = 0;
   /** @type {number} */ #armor = 0;
   /** @type {number} */ #speed = 0;
   /** @type {number} */ #fat = 0;
-  /** @type {number} */ #size = 1;
+  /** @type {number} */ #multikill = 1;
   /** @type {boolean} */ #venom = false;
   /** @type {boolean} */ #antivenom = false;
   /** @type {boolean} */ #flying = false;
@@ -30,6 +31,7 @@ export default class Species {
   get size() { return this.#size; }
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
+  get multikill() { return this.#multikill; }
 
   /**
    * @param {string} name
@@ -43,8 +45,9 @@ export default class Species {
    * @param {'venom' | 'anti-venom' | null} venom
    * @param {boolean} flying
    * @param {boolean} reach
+   * @param {number} multikill
    */
-  constructor({ name, diet, fecundity = 1, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false }) {
+  constructor({ name, diet, fecundity = 1, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false, multikill = 1 }) {
     this.#name = name;
     this.#diet = diet;
     this.#fecundity = fecundity;
@@ -55,6 +58,7 @@ export default class Species {
     this.#size = size;
     this.#flying = flying;
     this.#reach = reach;
+    this.#multikill = multikill;
 
     if (venom === 'venom') {
       this.#venom = true;
@@ -68,7 +72,7 @@ export default class Species {
 
   initialize() {
     const baseCost = 0.05;
-    const sizeCost = this.#size * 0.95;
+    const sizeCost = this.#size ** 1.2 * 0.95;
 
     const sortedDiet = this.#diet.sort(sortBy(f => forageDefinitions[f].adaptationCost, 'descending'));
     const firstDiet = first(sortedDiet);
@@ -115,7 +119,9 @@ export default class Species {
     const baseFlyingCost = this.#flying ? 4 : 0; // Flying is cheaper than an equivalent amount of speed
     const flyingCost = baseFlyingCost * Math.max(this.#size, this.#size ** 2); // Flying scales dramatically with size
     
-    const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost;
+    const multikillCost = (this.#multikill - 1) * 0 * this.#size; // [PH] TODO set cost
+
+    const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost + multikillCost;
     const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
     this.#power = total;
 
@@ -340,10 +346,10 @@ export default class Species {
     // Meat yield check: is the prey worth hunting?
     const meatVolume = otherSpecies.getBaseMeatVolumeWithoutFat();
     const perMemberAppetite = this.#appetite;
-    const satiationFraction = meatVolume / perMemberAppetite;
+    const satiationFraction = meatVolume * this.#multikill / perMemberAppetite;
     if (satiationFraction < Constants.predation.minimumSatiationFraction) return {
       able: false,
-      reason: `Prey not worth hunting: provides ${formatSmallNumber(satiationFraction * 100)}% of a predator's appetite, which is below the minimum threshold of ${Constants.predation.minimumSatiationFraction * 100}%`,
+      reason: `Prey not worth hunting: provides ${formatSmallNumber(satiationFraction * 100)}% of a predator's appetite${this.#multikill > 1 ? ` (over max ${this.#multikill} kills)` : ''}, which is below the minimum threshold of ${Constants.predation.minimumSatiationFraction * 100}%`,
     };
 
     return { able: true };

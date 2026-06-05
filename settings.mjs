@@ -4,7 +4,7 @@ const Settings = {
   log: {
     energyDeficits: false,
     deaths: false,
-    extinctions: false, // 'verbose' | 'terse' | false
+    extinctions: 'terse', // 'verbose' | 'terse' | false
     initialPopulations: true,
     initialEnvironment: false,
     extinctPopulationsInFinalRankings: true,

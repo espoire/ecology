@@ -1,13 +1,20 @@
 TODO
+Enforce nonzero power cost for multikill
 Alter predation: redesign hunt failure rate.
-  Adjust the "how hard is this prey to find" term such that kill rate meaningfully declines from cap BEFORE predators > prey.
-  "Uncap" hunt bids, new soft cap is preyCount / sucessRate.
-  No unallocated bids: if all prey options saturate, allocate the remaining bids proportionally (to original weights, NOT amount already allocated).
+  Add new hunting bid soft cap is preyCount / sucessRate.
+    No unallocated bids: if all prey options saturate, allocate the remaining bids proportionally (to original weights, NOT amount already allocated).
   Apply the "No unallocated bids" change also to forage bidding.
   Attach the "cover" constant to individual biomes.
   Tune the "cover" parameter per biome. Should be higher in biomes which would have many places to hide.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
+Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby.
+  aquatic/amphibious synergy with eats-algae
+  Add Aquatic forages:
+    phytoplankton
+    detritus (marine snow -- abyss only)
+    seaweed
+    coral
 Add tunable 'target-fat' parameter [0 .. 1] default 0.5
   Population will not send fat < target-fat to make births
     Effective target scales down for tiny populations

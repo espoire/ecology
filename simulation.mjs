@@ -40,14 +40,24 @@ function simulateDay(day, env, pops, foodChain) {
   spawnResources(env);
 
   // Get predation plans
+  /** @type {Map<Population, number>[]} Where index corresponds to the predator population in `pops` */
   const predationPlans = pops.map(pop => pop.getPredationDemands(day, pops, foodChain));
 
   // Sum total demand by prey population across predators
   const totalDemandByPreyPopulation = new Map();
+  /** @type {Set<Population>} */ const preyPopulations = new Set();
   for (const plan of predationPlans) {
+    for (const preyPop of plan.keys()) {
+      const demand = plan.get(preyPop);
+      const canFind = preyPop.getHuntSuccessRate();
+      const modifiedDemand = demand * canFind; // Effective demand is reduced by the predator population's ability to find this prey population
+      plan.set(preyPop, modifiedDemand);
+    }
+
     for (const [preyPop, demand] of plan.entries()) {
       const currentDemand = totalDemandByPreyPopulation.get(preyPop) ?? 0;
       totalDemandByPreyPopulation.set(preyPop, currentDemand + demand);
+      preyPopulations.add(preyPop);
     }
   }
 
@@ -56,7 +66,7 @@ function simulateDay(day, env, pops, foodChain) {
   for (const [preyPop, totalDemand] of totalDemandByPreyPopulation.entries()) {
     if (totalDemand == 0) continue;
 
-    // Satisfaction is the portion of demand that can be met with available resources -- in this case, the pray population count
+    // Satisfaction is the portion of demand that can be met with available resources -- in this case, the prey population count
     const availableRatio = preyPop.count / totalDemand;
     satisfactionByPreyPopulation.set(preyPop, clamp(availableRatio, 0, 1));
   }
@@ -67,12 +77,16 @@ function simulateDay(day, env, pops, foodChain) {
   /** @type {Map<Population, number>} */
   const actualDeathsByPreyPopulation = new Map();
   const killQuotas = pops.map(pop => pop.getPredationKillQuota());
+  const appetites = pops.map(pop => pop.getTotalAppetite());
 
-  // Loop through BY PREY POPULATION to assign kills, going in least-satisfaction to most-satisfaction order, filling bids in most-demanding-predator-first order, to model predators competing for prey
-  const preyPopsBySatisfaction = [...satisfactionByPreyPopulation.entries()].sort((a, b) => a[1] - b[1]); // Sort prey populations by satisfaction, lowest first
-  for (const [prey, satisfaction] of preyPopsBySatisfaction) {
+  // Loop through BY PREY POPULATION to assign kills, going in meat-per-kill descending order
+  const preyPopsByMeat = [...preyPopulations].sort((a, b) => b.getMeatVolumeForKill() - a.getMeatVolumeForKill());
+  for (const prey of preyPopsByMeat) {
     if (!prey.isPresent(day)) continue; // Skip prey populations that aren't present today
     let preyCount = prey.count;
+
+    const satisfaction = satisfactionByPreyPopulation.get(prey) ?? 0;
+    if (satisfaction === 0) continue; // Skip prey populations that have no predation demand
 
     // Get all predators that want this prey population
     const predatorPops = predationPlans
@@ -83,8 +97,7 @@ function simulateDay(day, env, pops, foodChain) {
     for (const { plan, index } of predatorPops) {
       const predators = pops[index];
       const demand = plan.get(prey); // How much this predator population wants to kill from this prey population
-      const canFind = prey.getHuntSuccessRate();
-      const satisfiedDemand = demand * satisfaction * canFind; // How much of that demand can actually be satisfied based on prey population availability and predator's ability to find prey
+      const satisfiedDemand = demand * satisfaction; // Applying canFind 
       const baseKills = roundRandom(satisfiedDemand); // Base kills is the satisfied demand rounded to a whole number, with some randomness
 
       let kills = baseKills;
@@ -92,6 +105,16 @@ function simulateDay(day, env, pops, foodChain) {
       
       const killQuota = killQuotas[index]; // Max this predator population can kill across all prey populations
       if (kills > killQuota) kills = killQuota; // Can't kill more than the predator population's kill quota
+
+      const meatPerKill = prey.getMeatVolumeForKill();
+      const appetitePerMember = predators.species.appetite;
+      const usableMeatPerKill = Math.min(appetitePerMember, meatPerKill); // "An individual kill won't be directly eaten by more than one individual"
+      const remainingAppetiteTotal = appetites[index];
+      const maxKillsToSatisfyAppetite = Math.ceil(remainingAppetiteTotal / usableMeatPerKill);
+      if (kills > maxKillsToSatisfyAppetite) kills = maxKillsToSatisfyAppetite; // No need to kill more than would satisfy the predator population's appetite
+
+      const actualAppetiteSatisfied = kills * usableMeatPerKill;
+      appetites[index] -= actualAppetiteSatisfied; // Reduce the remaining appetite for this predator population by the actual appetite satisfied by these kills
 
       actualKillsByPredatorPopulation[index] ??= new Map();
       actualKillsByPredatorPopulation[index].set(prey, kills);
@@ -246,20 +269,20 @@ function spawnResources(environment, multiplier = 1) {
     const spawnAmount = Math.max(0, environment.biome.forage[key] * multiplier * plentifulness * roll * resourceMultiplier);
     environment.food[key] += spawnAmount;
   }
-  for (const key in water) {
-    const roll = spawnRandomness();
-    const spawnAmount = Math.max(0, environment.biome.water[key] * multiplier * plentifulness * roll * resourceMultiplier);
-    environment.water[key] += spawnAmount;
-  }
+  // for (const key in water) {
+  //   const roll = spawnRandomness();
+  //   const spawnAmount = Math.max(0, environment.biome.water[key] * multiplier * plentifulness * roll * resourceMultiplier);
+  //   environment.water[key] += spawnAmount;
+  // }
 
-  // Check for rain
-  for (let i = 0; i < multiplier; i++) {
-    if (Math.random() < environment.biome.water.rain.frequency) {
-      const roll = spawnRandomness();
-      const spawnAmount = Math.max(0, environment.biome.water.rain.intensity * plentifulness * roll * resourceMultiplier);
-      environment.water[water.fresh] += spawnAmount;
-    }
-  }
+  // // Check for rain
+  // for (let i = 0; i < multiplier; i++) {
+  //   if (Math.random() < environment.biome.water.rain.frequency) {
+  //     const roll = spawnRandomness();
+  //     const spawnAmount = Math.max(0, environment.biome.water.rain.intensity * plentifulness * roll * resourceMultiplier);
+  //     environment.water[water.fresh] += spawnAmount;
+  //   }
+  // }
 }
 
 function rotFoodSupply(environment) {

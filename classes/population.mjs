@@ -147,7 +147,7 @@ export default class Population {
   }
 
   getPredationKillQuota() {
-    return this.#count; // Each member of the population can only make 1 kill per day, so kill quota is equal to population count
+    return this.#count * this.#species.multikill; // Each member of the population can only make 1 kill per day, so kill quota is equal to population count
   }
 
   /**
@@ -433,7 +433,9 @@ export default class Population {
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
-    console.log(`${prefix}${this.#species} (${powerText}, appetite ${formatSmallNumber(this.#species.appetite)}, starts day ${this.#species.getAppearanceDelay()}): \t${countText}${fatText}`);
+    const start = this.#species.getAppearanceDelay();
+    const startText = start > 0 ? `, starts day ${start}` : '';
+    console.log(`${prefix}${this.#species} (${powerText}, appetite ${formatSmallNumber(this.#species.appetite)}${startText}): \t${countText}${fatText}`);
   }
 
   logFinalState(prefix = '') {
