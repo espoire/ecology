@@ -1,4 +1,6 @@
 TODO
+Refactor 'fecundity' to count from zero, and stay at lowish numbers
+Add 'fastDigestion', which increases daily appetite (TODO better name)
 Alter predation: redesign hunt failure rate.
   Fix multikill hunters not having population oscillation cycles. Try one or more of:
     Smaller prey benefit more from cover, and vice versa.
