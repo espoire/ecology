@@ -13,15 +13,15 @@ export const sizeNames = {
 };
 
 export const sizes = {
-  [sizeNames.micro]: 0.005,
-  [sizeNames.fine]: 0.04,
-  [sizeNames.tiny]: 0.2,
+  [sizeNames.micro]: 1/4**3,
+  [sizeNames.fine]: 1/4**2,
+  [sizeNames.tiny]: 1/4,
   [sizeNames.small]: 1,
-  [sizeNames.medium]: 3,
-  [sizeNames.big]: 10,
-  [sizeNames.huge]: 40,
-  [sizeNames.giant]: 150,
-  [sizeNames.colossal]: 1000,
+  [sizeNames.medium]: 4,
+  [sizeNames.big]: 4**2,
+  [sizeNames.huge]: 4**3,
+  [sizeNames.giant]: 4**4,
+  [sizeNames.colossal]: 4**5,
 };
 
 const reverseSizeLookup = invertObject(sizes);

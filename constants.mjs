@@ -1,7 +1,8 @@
 const Constants = {
   predation: {
+    maxSpeciesStartDelay: 20,
     efficiency: 0.75,
-    minimumSatiationFraction: 0.05, // A predator won't bother hunting prey that would only satisfy a tiny fraction of its appetite
+    minimumSatiation: 0.05, // A predator won't bother hunting prey that would only satisfy a tiny fraction of its appetite
     
     // Tuning factor for predation success rates at varying population scales.
     // At very large predator & prey populations numbers, hunt suuccess rate approximates 1, and expected kills approaches (num_predators - cover).

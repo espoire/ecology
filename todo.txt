@@ -1,11 +1,13 @@
 TODO
-Enforce nonzero power cost for multikill
 Alter predation: redesign hunt failure rate.
+  Fix multikill hunters not having population oscillation cycles. Try one or more of:
+    Smaller prey benefit more from cover, and vice versa.
+    Multikill hunters penalized more from cover.
+  Attach the "cover" constant to individual biomes.
+  Tune the "cover" parameter per biome. Should be higher in biomes which would have many places to hide.
   Add new hunting bid soft cap is preyCount / sucessRate.
     No unallocated bids: if all prey options saturate, allocate the remaining bids proportionally (to original weights, NOT amount already allocated).
   Apply the "No unallocated bids" change also to forage bidding.
-  Attach the "cover" constant to individual biomes.
-  Tune the "cover" parameter per biome. Should be higher in biomes which would have many places to hide.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
 Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby.

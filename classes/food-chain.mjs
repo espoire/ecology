@@ -37,7 +37,7 @@ export default class FoodChain {
 
         _logMaybe(`  Can prey on ${s2.name}?`);
 
-        const { able, reason } = s1.canPreyUpon(s2);
+        const { able, reason } = s1.canHunt(s2);
         lookup[s1.name][s2.name] = able;
 
         if (able) {

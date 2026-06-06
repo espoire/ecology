@@ -147,7 +147,7 @@ export default class Population {
   }
 
   getPredationKillQuota() {
-    return this.#count * this.#species.multikill; // Each member of the population can only make 1 kill per day, so kill quota is equal to population count
+    return this.#count * this.#species.getPredationKillQuota(); // Each member of the population can only make 1 kill per day, so kill quota is equal to population count
   }
 
   /**
@@ -430,12 +430,13 @@ export default class Population {
 
   logState(prefix = '') {
     const powerText = `${formatSmallNumber(this.#species.power)} P, ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep`;
+    const storageText = this.#species.canStoreFat() ? `, ${this.#species.getFatCapacityPerMember().toFixed(1)} E fat storage` : '';
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
     const start = this.#species.getAppearanceDelay();
     const startText = start > 0 ? `, starts day ${start}` : '';
-    console.log(`${prefix}${this.#species} (${powerText}, appetite ${formatSmallNumber(this.#species.appetite)}${startText}): \t${countText}${fatText}`);
+    console.log(`${prefix}${this.#species} (${powerText}${storageText}, appetite ${formatSmallNumber(this.#species.appetite)}${startText}): \t${countText}${fatText}`);
   }
 
   logFinalState(prefix = '') {

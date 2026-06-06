@@ -257,7 +257,7 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 2,
     reach: true, // Tongue allows frogs to catch flying prey
-    multikill: 5, // Can catch many bugs in a day TODO implement
+    multikill: 2,
     size: sizes[sizeNames.tiny],
   },
   rat: {
@@ -314,7 +314,15 @@ export const speciesDefinitions = {
     name: 'sardine',
     diet: [forage.carrion],
     weapons: 1,
-    multikill: 50,
+
+    multikill: 1,
+    // Normally, you can hunt about 1 size-tier smaller.
+    // Same size may max out daily hunger, usually 40-120% of daily cap.
+    // 1 size down will only give ~10-30% of daily max hunger.
+    // Multikill grants x4 as many max kills/day, which approximately lets them hunt 1 size tier smaller than usual, or more reliably max out daily hunger when hunting within the same size tier.
+    // Multiple points stack multiplicatively and thus shift the effective minimum-huntable prey size additional size tiers each.
+
+    fat: 5,
     size: sizes[sizeNames.tiny],
   },
 };

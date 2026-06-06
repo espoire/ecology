@@ -18,7 +18,7 @@ export default class Species {
   /** @type {number} */ #armor = 0;
   /** @type {number} */ #speed = 0;
   /** @type {number} */ #fat = 0;
-  /** @type {number} */ #multikill = 1;
+  /** @type {number} */ #multikill = 0;
   /** @type {boolean} */ #venom = false;
   /** @type {boolean} */ #antivenom = false;
   /** @type {boolean} */ #flying = false;
@@ -31,7 +31,6 @@ export default class Species {
   get size() { return this.#size; }
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
-  get multikill() { return this.#multikill; }
 
   /**
    * @param {string} name
@@ -119,7 +118,7 @@ export default class Species {
     const baseFlyingCost = this.#flying ? 4 : 0; // Flying is cheaper than an equivalent amount of speed
     const flyingCost = baseFlyingCost * Math.max(this.#size, this.#size ** 2); // Flying scales dramatically with size
     
-    const multikillCost = (this.#multikill - 1) * 0 * this.#size; // [PH] TODO set cost
+    const multikillCost = this.#multikill * 4 * this.#size; // [PH] TODO set cost
 
     const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost + multikillCost;
     const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
@@ -143,6 +142,7 @@ export default class Species {
       if (this.#reach) console.log('  reach: ', `${formatSmallNumber(reachCost)} E`);
       if (this.#flying) console.log('  flying: ', `${formatSmallNumber(flyingCost)} E`);
       if (this.#venom) console.log('  venom: ', `${formatSmallNumber(venomCost)} E`);
+      if (this.#multikill) console.log('  multikill: ', `${formatSmallNumber(multikillCost)} E`);
       console.log();
     }
 
@@ -183,7 +183,7 @@ export default class Species {
     if (!this.canBePredator().able) return 0; // Herbivores all start on day 0
 
     // Predators start later, to give herbivores a chance to bootstrap up to more realistic populations, so predators don't all instantly starve
-    const maxDelay = 20;
+    const maxDelay = Constants.predation.maxSpeciesStartDelay;
     const size = getSizeMetadata(this.#size);
     const sizeTeir = size.index;
     const delay = Math.round(sizeTeir / maxSizeTier * maxDelay);
@@ -213,6 +213,11 @@ export default class Species {
   getFatCapacityPerMember() {
     if (!this.canStoreFat()) return 0;
     return this.#fat * this.#size;
+  }
+
+  getPredationKillQuota() {
+    if (!this.canBePredator().able) return 0;
+    return 4 ** this.#multikill;
   }
 
   /**
@@ -296,9 +301,9 @@ export default class Species {
 
   /**
    * @param {Species} otherSpecies
-   * @returns {{ able: boolean, reason?: string }} Whether this species can prey upon the other species, and if not, the reasons why not.
+   * @returns {{ able: boolean, reason?: string }} Whether this species can hunt the other species, and if not, the reasons why not.
    */
-  canPreyUpon(otherSpecies) {
+  canHunt(otherSpecies) {
     const canBePredator = this.canBePredator();
     if (!canBePredator.able) return canBePredator;
 
@@ -346,10 +351,12 @@ export default class Species {
     // Meat yield check: is the prey worth hunting?
     const meatVolume = otherSpecies.getBaseMeatVolumeWithoutFat();
     const perMemberAppetite = this.#appetite;
-    const satiationFraction = meatVolume * this.#multikill / perMemberAppetite;
-    if (satiationFraction < Constants.predation.minimumSatiationFraction) return {
+    const kills = this.getPredationKillQuota();
+    const meat = meatVolume * kills;
+    const satiation = meat / perMemberAppetite;
+    if (satiation < Constants.predation.minimumSatiation) return {
       able: false,
-      reason: `Prey not worth hunting: provides ${formatSmallNumber(satiationFraction * 100)}% of a predator's appetite${this.#multikill > 1 ? ` (over max ${this.#multikill} kills)` : ''}, which is below the minimum threshold of ${Constants.predation.minimumSatiationFraction * 100}%`,
+      reason: `Prey not worth hunting: provides ${formatSmallNumber(satiation * 100)}% of a predator's appetite${kills > 1 ? ` (over max ${kills} kills)` : ''}, which is below the minimum threshold of ${Constants.predation.minimumSatiation * 100}%`,
     };
 
     return { able: true };
