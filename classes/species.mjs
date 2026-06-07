@@ -274,8 +274,8 @@ export default class Species {
 
     const { population, leftoverEnergy } = this.getInitialPopulation();
     const totalFatCapacity = population * this.getFatCapacityPerMember();
-    let freeStartingFat = 0.1;
-    if (this.canBePredator()) freeStartingFat += 0.5; // Carnivores arrive with some fat on them
+    let freeStartingFat = 0.2;
+    if (this.canBePredator().able) freeStartingFat += 0.5; // Predators start with more fat, since they have a harder time finding food at very low population levels and are more likely to experience energy deficits that could lead to premature starvation.
     const fatPercentage = leftoverEnergy / totalFatCapacity + freeStartingFat;
 
     return clamp(fatPercentage, 0, 1);
