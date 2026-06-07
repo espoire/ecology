@@ -34,7 +34,7 @@ const Constants = {
     yearLength: 360, // Days per year, which determines how long seasons last
   },
   forage: {
-    spawnVariance: 0.001, // Variance for daily forage spawn multiplier. Higher means more extreme good and bad days.
+    spawnVariance: 0.05, // Variance for daily forage spawn multiplier. Higher means more extreme good and bad days.
   },
 };
 
