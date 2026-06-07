@@ -129,7 +129,7 @@ export default class Population {
     const speed = 1 + 0.1 * preySpeed / deficitReduction; // Fast prey get up to 10% more cover per speed point
 
     const effectiveCover = multikill * speed * cover / size;
-    const rate = this.#count / (this.#count + effectiveCover);
+    const rate = (this.#count / (this.#count + effectiveCover)) ** 1.5;
     return rate;
   }
 
