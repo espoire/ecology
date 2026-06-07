@@ -11,6 +11,7 @@ const Settings = {
     extinctPopulationsInFinalRankings: true,
     foodChain: false,
     predation: false,
+    omittedBiomeClimate: true,
     
     species: {
       // Add species names to log detailed calculations for that species whenever it's initialized or re-initialized
@@ -25,6 +26,7 @@ const Settings = {
     includeDayNumber: false,
     species: 'total-energy', // 'count' | 'total-energy' | false
     forage: false, // boolean
+    forageSpawns: false, // boolean
     logScale: true, // boolean
   },
 };

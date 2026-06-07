@@ -1,5 +1,4 @@
 TODO
-Add 'fastDigestion', which increases daily appetite (TODO better name)
 Alter predation: redesign hunt failure rate.
   Fix multikill hunters not having population oscillation cycles. Try one or more of:
     Smaller prey benefit more from cover, and vice versa.
@@ -11,6 +10,13 @@ Alter predation: redesign hunt failure rate.
   Apply the "No unallocated bids" change also to forage bidding.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
+  'speed' boosts effective cover 10% per point
+Put 'fat' on an exponential scale, and rebalance
+Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
+Make lichen viable
+  Food type specialization
+  'inedible'
+  Add 'fastDigestion', which increases daily appetite (TODO better name)? Antisynergy with high-energy best-diet
 Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby.
   aquatic/amphibious synergy with eats-algae
   Add Aquatic forages:
@@ -18,6 +24,9 @@ Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby
     detritus (marine snow -- abyss only)
     seaweed
     coral
+  Terrestrial: +1 speed for predator/prey calcs
+  Amphibious: -1 waterEfficiency
+  Aquatic: -10% Upkeep
 Add tunable 'target-fat' parameter [0 .. 1] default 0.5
   Population will not send fat < target-fat to make births
     Effective target scales down for tiny populations

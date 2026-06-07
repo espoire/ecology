@@ -1,5 +1,5 @@
 import FoodChain from "./classes/food-chain.mjs";
-import { forageDefinitions } from "./definitions/forage.mjs";
+import Constants from "./constants.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
 import { sumMapValues } from "./util/map.mjs";
@@ -37,7 +37,7 @@ export function runSim(env, pops, days = 10) {
  * @param {FoodChain} foodChain
  */
 function simulateDay(day, env, pops, foodChain) {
-  spawnResources(env);
+  spawnResources(day, env);
 
   // Get predation plans
   /** @type {Map<Population, number>[]} Where index corresponds to the predator population in `pops` */
@@ -258,16 +258,23 @@ function spawnCarrionForStarvationDeaths(env, species, deaths) {
   env.food[forage.carrion] += carrionAdded;
 }
 
+let forageSpawnsToday = null;
 const resourceMultiplier = 1;
-const spawnRandomness = () => bellRandom(0.05, 1);
-function spawnResources(environment, multiplier = 1) {
+const spawnRandomness = () => bellRandom(Constants.forage.spawnVariance, 1);
+function spawnResources(day, environment, multiplier = 1) {
   const plentifulness = spawnRandomness(); // Random multiplier for resource spawn each day to create good and bad days for the population
 
+  const spawns = environment.climate.getModifiedForageSpawn(day, environment.biome.forage);
+  forageSpawnsToday = {};
+
   // Regenerate resources
-  for (const key in environment.biome.forage) {
+  for (const key in spawns) {
+    const amount = spawns[key];
     const roll = spawnRandomness();
-    const spawnAmount = Math.max(0, environment.biome.forage[key] * multiplier * plentifulness * roll * resourceMultiplier);
+    const spawnAmount = Math.max(0, amount * multiplier * plentifulness * roll * resourceMultiplier);
     environment.food[key] += spawnAmount;
+
+    forageSpawnsToday[key] = spawnAmount; // Store today's forage spawns for export/debugging purposes
   }
   // for (const key in water) {
   //   const roll = spawnRandomness();
@@ -406,6 +413,9 @@ function _initTimeSeriesLog(env, pops) {
   if (Settings.export.forage) {
     headers.push(...Object.keys(env.food));
   }
+  if (Settings.export.forageSpawns) {
+    headers.push(...Object.keys(env.biome.forage).map(key => `${key}-spawned`));
+  }
   if (Settings.export.species) {
     headers.push(...pops.map(pop => pop.species.name));
   }
@@ -435,6 +445,13 @@ function _updateTimeSeriesLog(day, env, pops) {
   if (Settings.export.forage) {
     for (const forageType in env.food) {
       const amount = env.food[forageType];
+      row.push(amount);
+    }
+  }
+
+  if (Settings.export.forageSpawns) {
+    for (const forageType in env.biome.forage) {
+      const amount = forageSpawnsToday[forageType];
       row.push(amount);
     }
   }

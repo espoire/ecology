@@ -1,3 +1,5 @@
+export const TAU = 2 * Math.PI;
+
 /** Large number formatter.
  * Converts large integers like 1234567 to user-readable '1.2M' notation.
  *

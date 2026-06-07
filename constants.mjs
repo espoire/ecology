@@ -27,6 +27,15 @@ const Constants = {
       omnivory: 0.4, // Reduced cost for additional diet adaptations besides the most-expensive-taken. 0.4 = -40%, AKA 60% cost.
     },
   },
+  climate: {
+    default: 'temperate',
+  },
+  seasons: {
+    yearLength: 360, // Days per year, which determines how long seasons last
+  },
+  forage: {
+    spawnVariance: 0.001, // Variance for daily forage spawn multiplier. Higher means more extreme good and bad days.
+  },
 };
 
 export default Constants;

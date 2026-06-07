@@ -1,9 +1,11 @@
 import { forage, water } from "../definitions/names.mjs";
+import Climate from "./climate.mjs";
 
 export default class Environment {
   static generate(biome) {
     return {
       biome: biome,
+      climate: new Climate(biome.climate),
       food: {
         [forage.leaves]: 0,
         [forage.grass]: 0,
