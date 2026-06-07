@@ -1,4 +1,19 @@
 TODO
+Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
+Add 'dung' forage type
+  Low adaptation cost, but even lower energy yield than lichen
+  Produced based on other food eaten
+  Different foods have different dung yields
+    wood: 0.9
+    leaves: 0.75
+    grass: 0.7
+    lichen: 0.6
+    seeds: 0.35
+    nuts: 0.3
+    fruit: 0.2
+    carrion: 0.1
+    meat: 0.05
+  Rots faster than everything else
 Move more relevant logic into the Biome and Climate classes.
 Alter predation: redesign hunt failure rate.
   Add new hunting bid soft cap is preyCount / sucessRate.
@@ -6,10 +21,10 @@ Alter predation: redesign hunt failure rate.
   Apply the "No unallocated bids" change also to forage bidding.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
-Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
 Make lichen viable
   Food type specialization
   'inedible'
+    Also raises dung yield from being eaten
   Add 'fastDigestion', which increases daily appetite (TODO better name)? Antisynergy with high-energy best-diet
 Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby.
   aquatic/amphibious synergy with eats-algae
