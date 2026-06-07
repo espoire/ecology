@@ -461,7 +461,7 @@ export default class Population {
 
   logState(prefix = '') {
     const powerText = `${formatSmallNumber(this.#species.power)} P, ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep`;
-    const storageText = this.#species.canStoreFat() ? `, ${this.#species.getFatCapacityPerMember().toFixed(1)} E fat storage` : '';
+    const storageText = this.#species.canStoreFat() ? `, ${formatLargeNumber(this.#species.getFatCapacityPerMember())} E fat storage` : '';
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
     const countText = formatLargeNumber(this.#count);
