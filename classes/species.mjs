@@ -97,7 +97,7 @@ export default class Species {
     // This block noncausal, for debug logging only
     const dietPresizeCost = cost(firstDiet) + additionalDietBaseCost * additionalDietDiscount;
     
-    const baseFatCost = this.#fat > 0 ? 3 ** this.#fat : 0;
+    const baseFatCost = this.#fat > 0 ? 3 * this.#fat : 0;
     const flyingFatCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay more for fat storage since it's extra weight to carry
     const fatCost = baseFatCost * flyingFatCostMultiplier; // Fat cost does not scale with size
 
@@ -317,7 +317,7 @@ export default class Species {
 
   getFatCapacityPerMember() {
     if (!this.canStoreFat()) return 0;
-    return (4 ** this.#fat) * this.#size;
+    return 4 ** this.#fat;
   }
 
   getPredationKillQuota() {

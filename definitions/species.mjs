@@ -81,14 +81,14 @@ export const speciesDefinitions = {
     speed: 4,
     weapons: 5,
     armor: 2,
-    fat: 4,
+    fat: 7,
     size: sizes[sizeNames.huge],
   },
   bison: {
     name: 'bison',
     diet: [forage.grass],
     armor: 5,
-    fat: 3,
+    fat: 5,
     size: sizes[sizeNames.huge],
   },
   fish: {
@@ -139,8 +139,8 @@ export const speciesDefinitions = {
   caribou: {
     name: 'caribou',
     diet: [forage.lichen],
-    armor: 3,
-    fat: 2,
+    armor: 6,
+    fat: 4,
     size: sizes[sizeNames.big],
   },
   locust: {
@@ -181,7 +181,7 @@ export const speciesDefinitions = {
     name: 'mini-giraffe',
     diet: [forage.leaves],
     armor: 2,
-    fat: 1,
+    fat: 2,
     fecundity: 1,
     size: sizes[sizeNames.medium],
   },
@@ -189,7 +189,7 @@ export const speciesDefinitions = {
     name: 'mega-giraffe',
     diet: [forage.leaves],
     armor: 5,
-    fat: 2,
+    fat: 6,
     size: sizes[sizeNames.giant],
   },
   ironshroom: {
@@ -224,7 +224,7 @@ export const speciesDefinitions = {
     speed: 3,
     weapons: 3,
     armor: 1,
-    fat: 2,
+    fat: 3,
     size: sizes[sizeNames.small],
   },
   wolf: {
@@ -233,7 +233,7 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 4,
     armor: 2,
-    fat: 2,
+    fat: 4,
     size: sizes[sizeNames.medium],
   },
   deathcap: {
@@ -315,7 +315,7 @@ export const speciesDefinitions = {
     speed: 1,
     weapons: 1,
     armor: 3,
-    fat: 3,
+    fat: 4,
     venom: 'anti-venom', // Honey badgers are resistant to venom, so they can eat venomous prey without being affected
     size: sizes[sizeNames.medium],
   },
