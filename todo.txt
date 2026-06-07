@@ -6,7 +6,6 @@ Alter predation: redesign hunt failure rate.
   Apply the "No unallocated bids" change also to forage bidding.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
-  'speed' boosts effective cover 10% per point
 Put 'fat' on an exponential scale, and rebalance
 Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
 Make lichen viable

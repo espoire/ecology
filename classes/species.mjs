@@ -31,6 +31,7 @@ export default class Species {
   get size() { return this.#size; }
   get power() { return this.#power; }
   get appetite() { return this.#appetite; }
+  get speed() { return this.#speed; }
 
   /**
    * @param {string} name

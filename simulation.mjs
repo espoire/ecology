@@ -54,7 +54,7 @@ function simulateDay(day, env, pops, foodChain) {
 
     for (const preyPop of plan.keys()) {
       const demand = plan.get(preyPop);
-      const canFind = preyPop.getHuntSuccessRate(cover, predatorPop.species.getPredationKillQuota());
+      const canFind = preyPop.getHuntSuccessRate(predatorPop.species, cover);
       const modifiedDemand = demand * canFind; // Effective demand is reduced by the predator population's ability to find this prey population
       plan.set(preyPop, modifiedDemand);
     }

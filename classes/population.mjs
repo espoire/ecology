@@ -99,10 +99,26 @@ export default class Population {
     return energyYield + waterYield/10;
   }
 
-  getHuntSuccessRate(cover = Constants.predation.cover, predatorKillQuota = 1) {
+  /**
+   * @param {Species} predator
+   * @param {number} cover
+   * @returns {number} A number in the range [0, 1] representing the probability that a single hunt attempt on this population would succeed, based on the population's size and the biome's cover value.
+   */
+  getHuntSuccessRate(predator, cover = Constants.predation.cover) {
     // Larger species are easier to hunt, so they effectively have less "cover" against predation, and vice versa
-    // Multikill hunting is more penalized by cover, to offset the increased number of hunt attempts
-    const effectiveCover = predatorKillQuota * cover / this.#species.size;
+    const size = this.#species.size;
+
+    // Multikill hunting is more penalized by cover, to prevent increased number of hunt attempts from circumventing cover entirely
+    const multikill = predator.getPredationKillQuota();
+
+    // Faster prey benefit slightly more from cover
+    const preySpeed = this.#species.speed;
+    const predatorSpeed = predator.speed;
+    const speedDefecit = Math.max(0, predatorSpeed - preySpeed);
+    const deficitReduction = 1.5 ** speedDefecit; // Faster predators slightly claw-back the prey speed advantage, by about 1/3 of the advantage per predator speed above the prey's speed
+    const speed = 1 + 0.1 * preySpeed / deficitReduction; // Fast prey get up to 10% more cover per speed point
+
+    const effectiveCover = multikill * speed * cover / size;
     const rate = this.#count / (this.#count + effectiveCover);
     return rate;
   }
@@ -116,7 +132,7 @@ export default class Population {
   getScoreForPrey(cover, preyPopulation) {
     const myHungerPerMember = this.#species.appetite;
     const meatVolume = preyPopulation.getMeatVolumeForKill() *
-        preyPopulation.getHuntSuccessRate(cover, this.getPredationKillQuota()); // Include expected failed hunts for low-pop prey, which reduces the effective meat gained per kill attempt
+        preyPopulation.getHuntSuccessRate(this.#species, cover); // Include expected failed hunts for low-pop prey, which reduces the effective meat gained per kill attempt
 
     const satisfactionRatio = meatVolume / myHungerPerMember;
 
