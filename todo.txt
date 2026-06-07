@@ -6,7 +6,6 @@ Alter predation: redesign hunt failure rate.
   Apply the "No unallocated bids" change also to forage bidding.
   Add 'tracker' -- effectively reduces cover for a predator.
   Add 'stealth' -- effectively raises cover for a prey.
-Put 'fat' on an exponential scale, and rebalance
 Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
 Make lichen viable
   Food type specialization
@@ -22,11 +21,6 @@ Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby
   Terrestrial: +1 speed for predator/prey calcs
   Amphibious: -1 waterEfficiency
   Aquatic: -10% Upkeep
-Add tunable 'target-fat' parameter [0 .. 1] default 0.5
-  Population will not send fat < target-fat to make births
-    Effective target scales down for tiny populations
-      Compute ratio = birth-cost / total-fat-capacity, clamp to [0 .. 1]
-      Multiply target * (1 - ratio)
 Refactor species #power back to being the daily upkeep
 Predation
   Wasted meat drops as meat first, degrades to carrion end-of-day

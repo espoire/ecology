@@ -19,12 +19,12 @@ export default class Biome {
   constructor(name) {
     const config = biomeDefinitions[name];
     if (!config) throw new Error(`Biome "${name}" is not defined.`);
-    const { climateName, forage = {}, cover = 0 } = config;
+    const { climate, forage = {}, cover = 0 } = config;
 
-    if (!climateName && Settings.log.omittedBiomeClimate) console.warn(`Climate was is not defined for biome "${name}". Defaulting to "${Constants.climate.default}".`);
+    if (!climate && Settings.log.omittedBiomeClimate) console.warn(`Climate was is not defined for biome "${name}". Defaulting to "${Constants.climate.default}".`);
 
     this.#name = name;
-    this.#climate = new Climate(climateName);
+    this.#climate = new Climate(climate);
     this.#forage = forage;
     this.#cover = cover;
   }

@@ -12,7 +12,7 @@ export const speciesDefinitions = {
     diet: [forage.grass, forage.leaves, forage.seeds],
     fecundity: 1,
     speed: 4,
-    fat: 5,
+    fat: 1,
     size: sizes[sizeNames.small],
   },
   deer: {
@@ -20,7 +20,7 @@ export const speciesDefinitions = {
     diet: [forage.grass, forage.leaves, forage.fruit, forage.lichen],
     speed: 4,
     armor: 2,
-    fat: 10,
+    fat: 2,
     size: sizes[sizeNames.big],
   },
   mushroom: {
@@ -33,7 +33,7 @@ export const speciesDefinitions = {
     name: 'squirrel',
     diet: [forage.nuts],
     speed: 3,
-    fat: 0.4,
+    fat: 1,
     fecundity: 2,
     size: sizes[sizeNames.tiny],
   },
@@ -81,14 +81,14 @@ export const speciesDefinitions = {
     speed: 4,
     weapons: 5,
     armor: 2,
-    fat: 200,
+    fat: 4,
     size: sizes[sizeNames.huge],
   },
   bison: {
     name: 'bison',
     diet: [forage.grass],
     armor: 5,
-    fat: 50,
+    fat: 3,
     size: sizes[sizeNames.huge],
   },
   fish: {
@@ -96,7 +96,7 @@ export const speciesDefinitions = {
     diet: [forage.algae],
     speed: 1,
     armor: 1,
-    fat: 10,
+    fat: 2,
     size: sizes[sizeNames.small],
   },
   yeast: {
@@ -117,7 +117,7 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 2,
     armor: 2,
-    fat: 15,
+    fat: 2,
     size: sizes[sizeNames.small],
   },
   minnow: {
@@ -140,7 +140,7 @@ export const speciesDefinitions = {
     name: 'caribou',
     diet: [forage.lichen],
     armor: 3,
-    fat: 20,
+    fat: 2,
     size: sizes[sizeNames.big],
   },
   locust: {
@@ -155,7 +155,7 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.grass],
     speed: 1,
     weapons: 2,
-    fat: 2,
+    fat: 1,
     size: between(sizes[sizeNames.fine], sizes[sizeNames.tiny]),
   },
   hawk: {
@@ -163,7 +163,7 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.seeds],
     speed: 6,
     weapons: 4,
-    fat: 40,
+    fat: 2,
     flying: true,
     size: sizes[sizeNames.small],
   },
@@ -181,7 +181,7 @@ export const speciesDefinitions = {
     name: 'mini-giraffe',
     diet: [forage.leaves],
     armor: 2,
-    fat: 5,
+    fat: 1,
     fecundity: 1,
     size: sizes[sizeNames.medium],
   },
@@ -189,7 +189,7 @@ export const speciesDefinitions = {
     name: 'mega-giraffe',
     diet: [forage.leaves],
     armor: 5,
-    fat: 20,
+    fat: 2,
     size: sizes[sizeNames.giant],
   },
   ironshroom: {
@@ -208,7 +208,7 @@ export const speciesDefinitions = {
     name: 'biting-termite',
     diet: [forage.wood, forage.carrion],
     weapons: 1,
-    fat: 4,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   'leafcutter-beetle': {
@@ -224,7 +224,7 @@ export const speciesDefinitions = {
     speed: 3,
     weapons: 3,
     armor: 1,
-    fat: 15,
+    fat: 2,
     size: sizes[sizeNames.small],
   },
   wolf: {
@@ -233,7 +233,7 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 4,
     armor: 2,
-    fat: 30,
+    fat: 2,
     size: sizes[sizeNames.medium],
   },
   deathcap: {
@@ -260,7 +260,7 @@ export const speciesDefinitions = {
     speed: 3,
     weapons: 1,
     venom: 'venom',
-    fat: 2,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   bird: {
@@ -285,7 +285,7 @@ export const speciesDefinitions = {
     weapons: 2,
     reach: true, // Tongue allows frogs to catch flying prey
     multikill: 2,
-    fat: 2,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   rat: {
@@ -294,21 +294,20 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 1,
     fecundity: 1,
-    fat: 2,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   caterpillar: {
     name: 'caterpillar',
     diet: [forage.leaves],
     venom: 'venom',
-    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   'toxic-nudibranch': {
     name: 'toxic-nudibranch',
     diet: [forage.lichen],
     venom: 'venom',
-    size: sizes[sizeNames.tiny],
+    size: sizes[sizeNames.small],
   },
   'dire-honey-badger': {
     name: 'dire-honey-badger',
@@ -316,7 +315,7 @@ export const speciesDefinitions = {
     speed: 1,
     weapons: 1,
     armor: 3,
-    fat: 50,
+    fat: 3,
     venom: 'anti-venom', // Honey badgers are resistant to venom, so they can eat venomous prey without being affected
     size: sizes[sizeNames.medium],
   },
@@ -349,7 +348,7 @@ export const speciesDefinitions = {
     // Multikill grants x4 as many max kills/day, which approximately lets them hunt 1 size tier smaller than usual, or more reliably max out daily hunger when hunting within the same size tier.
     // Multiple points stack multiplicatively and thus shift the effective minimum-huntable prey size additional size tiers each.
 
-    fat: 5,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
 };

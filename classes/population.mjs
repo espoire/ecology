@@ -38,15 +38,18 @@ export default class Population {
     return day >= delay;
   }
 
+  /** @returns {number} In [0 .. 1] how much of the species' fat capacity is currently utilized */
   getFatRatio() {
     if (!this.#species.canStoreFat()) return 0;
     return this.#fat / this.getTotalFatEnergyCapacity();
   }
 
+  /** @returns {number} In [0 .. 100] how much of the species' fat capacity is currently utilized, as a percentage */
   getFatPercentage() {
     return this.getFatRatio() * 100;
   }
 
+  /** @returns {number} The total fat energy capacity of the population */
   getTotalFatEnergyCapacity() {
     if (!this.#species.canStoreFat()) return 0;
 
@@ -54,14 +57,21 @@ export default class Population {
     return fatPerMember * this.#count;
   }
 
+  /** @returns {number} The current fat energy per member of the population */
   getCurrentFatEnergyPerMember() {
     if (!this.#species.canStoreFat()) return 0;
     return this.#fat / this.#count;
   }
 
+  /** @returns {number} The available fat energy of the population */
   getAvailableFatEnergy() {
     if (!this.#species.canStoreFat()) return 0;
     return this.#fat;
+  }
+
+  /** @returns {number} The remaining fat energy capacity of the population */
+  getRemainingFatEnergyCapacity() {
+    return this.getTotalFatEnergyCapacity() - this.getAvailableFatEnergy()
   }
 
   getTotalPower() {
@@ -408,27 +418,28 @@ export default class Population {
   selectNumBirths(energy) {
     const species = this.#species;
 
-    const birthsWithoutFat = this.getBirthsForEnergyAmount(energy);
+    // Calculate the minimum number of births to avoid energy wastage
+    const remainingFatCapacity = this.getRemainingFatEnergyCapacity();
+    const overage = energy - remainingFatCapacity; // The amount of energy we can't store as fat, which represents the minimum energy we should spend on births to avoid waste
 
-    let birthsWithFatSpend = 0;
-    if (species.canStoreFat()) {
-      // If any fat reserves, maybe withdraw from fat to make births possible that wouldn't be with just food energy
-      const availableFatEnergy = this.getAvailableFatEnergy();
-      birthsWithFatSpend = this.getBirthsForEnergyAmount(energy + availableFatEnergy);
-    }
+    if (overage <= 0) return { births: 0, remainingEnergySurplus: energy }; // No overage, so no need to spend on births, we can just store as fat
 
-    const costPerBirth = species.getBirthEnergyCost();
-    if (birthsWithFatSpend > birthsWithoutFat) {
-      const additionalBirths = birthsWithFatSpend - birthsWithoutFat;
-      const fatEnergyWithdrawal = additionalBirths * costPerBirth;
-      this.spendFatEnergy(fatEnergyWithdrawal);
-      energy += fatEnergyWithdrawal;
-    }
+    const costPerBirth = this.#species.getBirthEnergyCost();
+    const birthsToAvoidWaste = Math.ceil(overage / costPerBirth);
+    const totalAvailableEnergy = energy + this.getAvailableFatEnergy(); // Total energy we have access to, including fat reserves
 
-    const births = Math.max(birthsWithoutFat, birthsWithFatSpend);
+    // Figure out how much energy we want to spend
+    let energyToSpend = birthsToAvoidWaste * costPerBirth;
+    energyToSpend = clamp(energyToSpend, 0, totalAvailableEnergy); // We can't spend more energy than we have access to
+
+    // Figure out how many births we make
+    const births = this.getBirthsForEnergyAmount(energyToSpend); // Might be less due to e.g. fecundity caps.
+
+    // Spend the energy
     const energySpentOnBirths = births * costPerBirth;
     energy -= energySpentOnBirths;
 
+    // Return result, caller must use the (maybe negative) remainingEnergySurplus to edit fat stores
     return { births, remainingEnergySurplus: energy };
   }
 

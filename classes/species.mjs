@@ -67,10 +67,17 @@ export default class Species {
       this.#antivenom = true;
     }
 
+    this.#appetite = this.#size;
+
     this.initialize();
   }
 
   initialize() {
+    this.initializePower();
+    this.logInitializationMaybe();
+  }
+
+  initializePower() {
     const baseCost = 0.05;
     const sizeCost = this.#size ** 1.2 * 0.95;
 
@@ -90,7 +97,7 @@ export default class Species {
     // This block noncausal, for debug logging only
     const dietPresizeCost = cost(firstDiet) + additionalDietBaseCost * additionalDietDiscount;
     
-    const baseFatCost = (this.#fat ** 0.8)/2;
+    const baseFatCost = this.#fat > 0 ? 3 ** this.#fat : 0;
     const flyingFatCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay more for fat storage since it's extra weight to carry
     const fatCost = baseFatCost * flyingFatCostMultiplier; // Fat cost does not scale with size
 
@@ -147,10 +154,6 @@ export default class Species {
       if (this.#multikill) console.log('  multikill: ', `${formatSmallNumber(multikillCost)} E`);
       console.log();
     }
-
-    this.#appetite = this.#size ** 0.9 + 0.01;
-
-    this.logInitializationMaybe();
   }
 
   logInitializationMaybe() {
@@ -234,6 +237,15 @@ export default class Species {
   }
 
   /**
+   * @returns {number} The best possible energy income this species can achieve per member per day.
+   */
+  getMaximalEnergyIncome() {
+    const appetitePerMember = this.#appetite;
+    const bestFoodByEnergyYield = this.getBestFoodByEnergyYield();
+    return appetitePerMember * bestFoodByEnergyYield.energy;
+  }
+
+  /**
    * @returns {{ type: 'string', energy: number }}
    */
   getBestFoodByEnergyYield() {
@@ -305,7 +317,7 @@ export default class Species {
 
   getFatCapacityPerMember() {
     if (!this.canStoreFat()) return 0;
-    return this.#fat * this.#size;
+    return (4 ** this.#fat) * this.#size;
   }
 
   getPredationKillQuota() {
