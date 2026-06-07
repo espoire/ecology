@@ -1,15 +1,17 @@
 import { forage, water } from "./names.mjs";
 
-const biomeDefinitions = {
+export const biomeDefinitions = {
   forest: {
     name: 'forest',
+    climate: 'temperate',
+    cover: 2000,
     forage: {
       [forage.leaves]: 80000,
       [forage.grass]: 5000,
       [forage.seeds]: 2000,
       [forage.nuts]: 20000,
       [forage.fruit]: 20000,
-      [forage.algae]: 100,
+      [forage.algae]: 500,
       [forage.lichen]: 10000,
       [forage.wood]: 20000,
       [forage.carrion]: 10,
@@ -17,6 +19,8 @@ const biomeDefinitions = {
   },
   plains: {
     name: 'plains',
+    climate: 'temperate',
+    cover: 500,
     forage: {
       [forage.leaves]: 20000,
       [forage.grass]: 50000,
@@ -31,6 +35,8 @@ const biomeDefinitions = {
   },
   swamp: {
     name: 'swamp',
+    climate: 'temperate',
+    cover: 1000,
     forage: {
       [forage.leaves]: 10000,
       [forage.grass]: 10000,
@@ -45,6 +51,8 @@ const biomeDefinitions = {
   },
   desert: {
     name: 'desert',
+    climate: 'arid',
+    cover: 100,
     forage: {
       [forage.leaves]: 1000,
       [forage.grass]: 2000,
@@ -59,6 +67,8 @@ const biomeDefinitions = {
   },
   tundra: {
     name: 'tundra',
+    climate: 'polar',
+    cover: 200,
     forage: {
       [forage.leaves]: 1000,
       [forage.grass]: 5000,
@@ -73,6 +83,8 @@ const biomeDefinitions = {
   },
   lake: {
     name: 'lake',
+    climate: 'temperate',
+    cover: 1200,
     forage: {
       [forage.leaves]: 2000,
       [forage.grass]: 10000,
@@ -97,4 +109,4 @@ const biomes = {
   tundra: biomeDefinitions.tundra,
 };
 
-export const biome = biomes.forest;
+export const biome = 'forest';

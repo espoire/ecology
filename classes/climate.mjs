@@ -15,10 +15,11 @@ export default class Climate {
    */
   constructor(climateName) {
     const id = climateName ?? Constants.climate.default;
+    let config = climates[id];
 
-    if (Settings.log.omittedBiomeClimate) console.warn(`Climate "${id}" is not defined. Defaulting to "${Constants.climate.default}".`);
+    if (!config && Settings.log.omittedClimate) console.warn(`Climate "${climateName}" is not defined. Defaulting to "${Constants.climate.default}".`);
+    if (!config) config = climates[Constants.climate.default];
 
-    const config = climates[id];
     const { name, forage } = config;
 
     this.#name = name;

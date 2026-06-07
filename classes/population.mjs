@@ -2,7 +2,7 @@
 /** @typedef {import('./food-chain.mjs').default} FoodChain */
 
 import Constants from '../constants.mjs';
-import { forageDefinitions } from '../definitions/forage.mjs';
+import { forageDefinitions } from '../definitions/forages.mjs';
 import meat from '../definitions/meat.mjs';
 import Settings from '../settings.mjs';
 import { mapArrayValuesToMap, mapMapValues, normalizeMap } from '../util/map.mjs';
@@ -99,21 +99,24 @@ export default class Population {
     return energyYield + waterYield/10;
   }
 
-  getHuntSuccessRate() {
-    const cover = Constants.predation.cover / this.#species.size; // Larger species are easier to hunt, so they effectively have less "cover" against predation
-    const rate = this.#count / (this.#count + cover);
+  getHuntSuccessRate(cover = Constants.predation.cover, predatorKillQuota = 1) {
+    // Larger species are easier to hunt, so they effectively have less "cover" against predation, and vice versa
+    // Multikill hunting is more penalized by cover, to offset the increased number of hunt attempts
+    const effectiveCover = predatorKillQuota * cover / this.#species.size;
+    const rate = this.#count / (this.#count + effectiveCover);
     return rate;
   }
 
   /**
+   * @param {number} cover The cover factor for the current biome, affecting hunt success rates.
    * @param {Population} preyPopulation
    * @returns {number} score for the given prey population, where higher is more preferred, usually in the range [0 .. approximately 1]
    * Includes some randomness to model hunting luck.
    */
-  getScoreForPrey(preyPopulation) {
+  getScoreForPrey(cover, preyPopulation) {
     const myHungerPerMember = this.#species.appetite;
     const meatVolume = preyPopulation.getMeatVolumeForKill() *
-        preyPopulation.getHuntSuccessRate(); // Include expected failed hunts for low-pop prey, which reduces the effective meat gained per kill attempt
+        preyPopulation.getHuntSuccessRate(cover, this.getPredationKillQuota()); // Include expected failed hunts for low-pop prey, which reduces the effective meat gained per kill attempt
 
     const satisfactionRatio = meatVolume / myHungerPerMember;
 
@@ -161,18 +164,19 @@ export default class Population {
 
   /**
    * @param {number} day The simulation day index, used to check if populations have appeared yet based on their appearance delay
+   * @param {number} cover The cover factor for the current biome, affecting hunt success rates.
    * @param {Population[]} preyPops
    * @param {FoodChain} foodChain
    * @returns {Map<Population, number>} (fractional) kill requests by prey population
    */
-  getPredationDemands(day, preyPops, foodChain) {
+  getPredationDemands(day, cover, preyPops, foodChain) {
     const isPredator = foodChain.isPredator(this.#species);
     const isPresent = this.isPresent(day);
     if (!isPresent || !isPredator) return new Map(); // Not present or not a predator, so no predation demands
 
     // Step 1: assign scores to predation options
     const preyPopulations = foodChain.getPreyListForPredator(this.#species).map(preySpecies => preyPops.find(pop => pop.#species === preySpecies)).filter(pop => pop && pop.isPresent(day));
-    const predationScores = mapArrayValuesToMap(preyPopulations, preyPop => this.getScoreForPrey(preyPop));
+    const predationScores = mapArrayValuesToMap(preyPopulations, preyPop => this.getScoreForPrey(cover, preyPop));
 
     // Step 2: assign kill-request amounts, totaling <= kill quota, based on predation scores
     const killQuota = this.getPredationKillQuota(); // Max 1 kill per predator member
@@ -329,7 +333,7 @@ export default class Population {
 
     const { remainingEnergyDeficit, fatEnergyUsed } = this.withdrawFromFatToCoverEnergyDeficit(energyDeficit);
     if (remainingEnergyDeficit <= 0) {
-      // No deaths if we were able to cover the energy deficit with fat reserves
+      // No deaths if we were able to pay the energy deficit with fat reserves
       return { remainingEnergyDeficit: 0, fatEnergyUsed, deaths: 0 };
     }
 

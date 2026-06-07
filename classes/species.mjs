@@ -1,5 +1,5 @@
 import Constants from "../constants.mjs";
-import { forageDefinitions } from "../definitions/forage.mjs";
+import { forageDefinitions } from "../definitions/forages.mjs";
 import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
 import { getSizeMetadata, maxSizeTier } from "../definitions/sizes.mjs";

@@ -39,17 +39,22 @@ export function runSim(env, pops, days = 10) {
 function simulateDay(day, env, pops, foodChain) {
   spawnResources(day, env);
 
+  const cover = env.biome.cover;
+
   // Get predation plans
   /** @type {Map<Population, number>[]} Where index corresponds to the predator population in `pops` */
-  const predationPlans = pops.map(pop => pop.getPredationDemands(day, pops, foodChain));
+  const predationPlans = pops.map(pop => pop.getPredationDemands(day, cover, pops, foodChain));
 
   // Sum total demand by prey population across predators
   const totalDemandByPreyPopulation = new Map();
   /** @type {Set<Population>} */ const preyPopulations = new Set();
-  for (const plan of predationPlans) {
+  for (let i = 0; i < predationPlans.length; i++) {
+    const plan = predationPlans[i];
+    const predatorPop = pops[i];
+
     for (const preyPop of plan.keys()) {
       const demand = plan.get(preyPop);
-      const canFind = preyPop.getHuntSuccessRate();
+      const canFind = preyPop.getHuntSuccessRate(cover, predatorPop.species.getPredationKillQuota());
       const modifiedDemand = demand * canFind; // Effective demand is reduced by the predator population's ability to find this prey population
       plan.set(preyPop, modifiedDemand);
     }
@@ -264,7 +269,7 @@ const spawnRandomness = () => bellRandom(Constants.forage.spawnVariance, 1);
 function spawnResources(day, environment, multiplier = 1) {
   const plentifulness = spawnRandomness(); // Random multiplier for resource spawn each day to create good and bad days for the population
 
-  const spawns = environment.climate.getModifiedForageSpawn(day, environment.biome.forage);
+  const spawns = environment.biome.climate.getModifiedForageSpawn(day, environment.biome.forage);
   forageSpawnsToday = {};
 
   // Regenerate resources

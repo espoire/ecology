@@ -4,7 +4,7 @@ overrideConsoleWarnAndErrorTextColors();
 import Environment from "./classes/environment.mjs";
 import Population from "./classes/population.mjs";
 import Species from "./classes/species.mjs";
-import { biome } from "./definitions/biome.mjs";
+import { biome } from "./definitions/biomes.mjs";
 import { speciesDefinitions } from "./definitions/species.mjs";
 import { runSim } from "./simulation.mjs";
 
