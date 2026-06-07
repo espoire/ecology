@@ -4,7 +4,7 @@ import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
 import { getSizeMetadata, maxSizeTier } from "../definitions/sizes.mjs";
 import Settings from "../settings.mjs";
-import { first, sum, tail } from "../util/array.mjs";
+import { first, maxBy, sum, tail } from "../util/array.mjs";
 import { clamp, formatSmallNumber } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
 import { sortBy } from "../util/sort.mjs";
@@ -13,7 +13,7 @@ export default class Species {
   /** @type {string} */ #name;
   /** @type {string[]} */ #diet;
   /** @type {number} */ #size = 1;
-  /** @type {number} */ #fecundity = 1;
+  /** @type {number} */ #fecundity = 0;
   /** @type {number} */ #weapons = 0;
   /** @type {number} */ #armor = 0;
   /** @type {number} */ #speed = 0;
@@ -46,7 +46,7 @@ export default class Species {
    * @param {boolean} reach
    * @param {number} multikill
    */
-  constructor({ name, diet, fecundity = 1, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false, multikill = 1 }) {
+  constructor({ name, diet, fecundity = 0, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false, multikill = 1 }) {
     this.#name = name;
     this.#diet = diet;
     this.#fecundity = fecundity;
@@ -107,7 +107,7 @@ export default class Species {
     // (Predator speed 2: flying is more costly than reach, but you also get the flying defensive benefit, so it's not a clear-cut choice either way.)
     const speedCost = this.#speed * 3 * flyingSpeedSynergy * this.#size;
 
-    const fecundityCost = (this.#fecundity - 1) * this.#size;
+    const fecundityCost = this.#fecundity * this.#size;
 
     const reachCost = (this.#reach ? 3 : 0) * this.#size; // Reach negates flying, and is cheaper than flying
 
@@ -124,7 +124,8 @@ export default class Species {
     const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
     this.#power = total;
 
-    if (isNaN(this.#power) || Settings.log.speciesPower.includes(this.#name)) {
+    const aliases = [this.#name, 'all', '*'];
+    if (isNaN(this.#power) || aliases.some(alias => Settings.log.species.power.includes(alias))) {
       console.log();
       console.log('species:', this.#name, 'power:', formatSmallNumber(this.#power), 'P');
       console.log('  upkeep:', formatSmallNumber(this.getEnergyUpkeep()), ' P');
@@ -138,7 +139,7 @@ export default class Species {
       if (this.#fat) console.log('  fat:', `${this.#fat} fat`, ` =  ${formatSmallNumber(fatCost)} E`);
       if (this.#weapons) console.log('  weapons:', `${this.#weapons} weapons`, ` =  ${formatSmallNumber(weaponsCost)} E`);
       if (this.#speed) console.log('  speed:', `${this.#speed} speed`, ` =  ${formatSmallNumber(speedCost)} E`);
-      if (this.#fecundity > 1) console.log('  fecundity:', `${this.#fecundity} fecundity`, ` =  ${formatSmallNumber(fecundityCost)} E`);
+      if (this.#fecundity) console.log('  fecundity:', `${this.#fecundity} fecundity`, ` =  ${formatSmallNumber(fecundityCost)} E`);
       if (this.#reach) console.log('  reach: ', `${formatSmallNumber(reachCost)} E`);
       if (this.#flying) console.log('  flying: ', `${formatSmallNumber(flyingCost)} E`);
       if (this.#venom) console.log('  venom: ', `${formatSmallNumber(venomCost)} E`);
@@ -147,6 +148,69 @@ export default class Species {
     }
 
     this.#appetite = this.#size ** 0.9 + 0.01;
+
+    this.logInitializationMaybe();
+  }
+
+  logInitializationMaybe() {
+    const aliases = [this.#name, 'all', '*'];
+
+    if (aliases.some(alias => Settings.log.species.fecundity.includes(alias))) {
+      console.log();
+      console.log(`Initialized species ${this.#name} with fecundity ${this.#fecundity}`);
+      console.log(`  Fecundity multiplier: ${formatSmallNumber(this.getFecundityMultiplier())}`);
+      console.log(`    Base: ${formatSmallNumber(Constants.birth.baseRateCap)}`);
+      if (this.#fecundity > 0) console.log(`    From fecundity ${this.#fecundity}: x${formatSmallNumber(this.#fecundity + 1)}`);
+      if (this.#size !== 1) console.log(`    From size ${this.#size}: x${formatSmallNumber(1/Math.sqrt(this.#size))}`);
+
+      const birthRateCapPercentage = this.getFecundityMultiplier() * 100;
+      console.log(`  Birth rate cap: ${formatSmallNumber(birthRateCapPercentage)}% of population per day`);
+
+      const energyPerDayPerMemberToSaturateBirthRate = this.getBirthEnergyCost() * this.getFecundityMultiplier();
+      const dailyUpkeep = this.getEnergyUpkeep();
+      const saturationPercentageOfUpkeep = energyPerDayPerMemberToSaturateBirthRate / dailyUpkeep * 100;
+
+      console.log(`  Power per member to saturate birth rate: ${formatSmallNumber(energyPerDayPerMemberToSaturateBirthRate)} P`);
+      console.log(`  Saturation percentage of upkeep: ${formatSmallNumber(saturationPercentageOfUpkeep)}%`);
+
+      const appetitePerMember = this.#appetite;
+      let foodEnergyYields = this.#diet.map(forageType => ({ type: forageType, energy: this.getEnergyYield(forageType) }));
+      if (this.canBePredator().able) foodEnergyYields.push({ type: 'meat', energy: meat.energy }); // If the species can eat carrion, it can also get energy from meat, which is more energy-dense than most forage
+      const bestFoodByEnergyYield = maxBy(foodEnergyYields, f => f.energy);
+      const energyPerDayPerMemberAtSaturation = appetitePerMember * bestFoodByEnergyYield.energy;
+      const surplusPerMemberAtSaturation = energyPerDayPerMemberAtSaturation - dailyUpkeep;
+
+      console.log(`  Appetite: ${formatSmallNumber(appetitePerMember)} food/day`);
+      console.log(`  Best food source: ${bestFoodByEnergyYield.type} (${formatSmallNumber(bestFoodByEnergyYield.energy)} E/food)`);
+      console.log(`  Power income if eating ${bestFoodByEnergyYield.type} to saturation: ${formatSmallNumber(energyPerDayPerMemberAtSaturation)} P`);
+      console.log(`  Upkeep: ${formatSmallNumber(dailyUpkeep)} P`);
+      console.log(`  Surplus power at saturation: ${formatSmallNumber(surplusPerMemberAtSaturation)} P`);
+
+      if (surplusPerMemberAtSaturation < 0.9 * energyPerDayPerMemberToSaturateBirthRate) {
+        const isWarn = this.#fecundity > 0;
+        const logFn = isWarn ? console.warn : console.log;
+
+        logFn(`  ${isWarn ? 'Warning: ' : ''}Birth rate de facto capped by diet & appetite.`);
+
+        const ratio = surplusPerMemberAtSaturation / energyPerDayPerMemberToSaturateBirthRate;
+        const effectiveCap = birthRateCapPercentage * ratio;
+
+        logFn(`    Cap reduced to: ${formatSmallNumber(ratio * 100)}%`);
+        logFn(`    Effective birth rate cap: ${formatSmallNumber(effectiveCap)}% of population per day`);
+
+        if (isWarn) {
+          const maxEffectiveFecundity = Math.ceil((this.#fecundity + 1) * ratio) - 1;
+          if (maxEffectiveFecundity < this.#fecundity) {
+            console.error(`      Fecundity above ${maxEffectiveFecundity} provides no additional benefit.`);
+            console.error(`      Current fecundity: ${this.#fecundity}`);
+            console.error(`      Wasted points: ${this.#fecundity - maxEffectiveFecundity}`);
+          }
+        }
+      } else if (surplusPerMemberAtSaturation > 1.1 * energyPerDayPerMemberToSaturateBirthRate) {
+        console.warn(`  Species birth rate capped by fecundity, not diet. Consider adding fecundity points.`);
+      }
+      console.log();
+    }
   }
 
   getInitialPopulation() {
@@ -233,7 +297,7 @@ export default class Species {
   }
 
   getFecundityMultiplier() {
-    return this.#fecundity / Math.sqrt(this.#size);
+    return Constants.birth.baseRateCap * (this.#fecundity + 1) / Math.sqrt(this.#size);
   }
 
   getCarrionPerStarvationDeath() {

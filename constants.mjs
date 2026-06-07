@@ -19,6 +19,9 @@ const Constants = {
     dailyUpkeepFactor: 1/8, // Daily upkeep is this fraction of a species' birth cost, so a species with birthCost 16 would need to gain 2 energy per day to maintain its population
     deathPowerDays: 4, // If a species falls this many days behind on energy upkeep, one member starves
   },
+  birth: {
+    baseRateCap: 0.1, // 10% of population per day, before size & fecundity adjustments
+  },
 };
 
 export default Constants;

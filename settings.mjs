@@ -10,7 +10,14 @@ const Settings = {
     extinctPopulationsInFinalRankings: true,
     foodChain: false,
     predation: false,
-    speciesPower: [], // Set to a species name to log detailed power calculation for that species whenever it's initialized or re-initialized
+    
+    species: {
+      // Add species names to log detailed calculations for that species whenever it's initialized or re-initialized
+      // 'all' or '*' can be used to log all species
+
+      power: [],
+      fecundity: [],
+    },
   },
   export: {
     disable: false,
@@ -21,6 +28,8 @@ const Settings = {
   },
 };
 
-Settings.log.speciesPower = ensureArray(Settings.log.speciesPower);
+for (const key in Settings.log.species) {
+  Settings.log.species[key] = ensureArray(Settings.log.species[key]);
+}
 
 export default Settings;

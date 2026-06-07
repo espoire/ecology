@@ -39,7 +39,7 @@ export const forageDefinitions = {
     adaptationCost: 8,
   },
   [forage.lichen]: {
-    energy: 2.5,
+    energy: 2 + 2/3,
     adaptationCost: 5,
   },
 };

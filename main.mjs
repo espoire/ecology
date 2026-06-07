@@ -1,3 +1,6 @@
+import { overrideConsoleWarnAndErrorTextColors } from "./util/logging.mjs";
+overrideConsoleWarnAndErrorTextColors();
+
 import Environment from "./classes/environment.mjs";
 import Population from "./classes/population.mjs";
 import Species from "./classes/species.mjs";

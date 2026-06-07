@@ -42,7 +42,7 @@ export function formatSmallNumber(num, sigfigs = 2, trimTrailingZeros = true) {
   const adjustedDecimalPlaces = sigfigs - magnitude - 1;
 
   const result = num.toFixed(Math.max(0, adjustedDecimalPlaces));
-  return trimTrailingZeros ? result.replace(/\.0+$|0+$/, '') : result;
+  return trimTrailingZeros && result.includes('.') ? result.replace(/\.0+$|0+$/, '') : result;
 }
 
 /**

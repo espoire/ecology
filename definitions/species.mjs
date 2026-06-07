@@ -10,7 +10,7 @@ export const speciesDefinitions = {
   rabbit: {
     name: 'rabbit',
     diet: [forage.grass, forage.leaves, forage.seeds],
-    fecundity: 2,
+    fecundity: 1,
     speed: 4,
     fat: 5,
     size: sizes[sizeNames.small],
@@ -27,12 +27,14 @@ export const speciesDefinitions = {
     name: 'mushroom',
     diet: [forage.carrion, forage.wood, forage.leaves],
     size: sizes[sizeNames.tiny],
+    fecundity: 1,
   },
   squirrel: {
     name: 'squirrel',
     diet: [forage.nuts],
     speed: 3,
     fat: 0.4,
+    fecundity: 2,
     size: sizes[sizeNames.tiny],
   },
   'flying-squirrel': {
@@ -40,6 +42,7 @@ export const speciesDefinitions = {
     diet: [forage.nuts],
     speed: 4,
     flying: true,
+    fecundity: 1,
     size: sizes[sizeNames.tiny],
   },
   ant: {
@@ -47,6 +50,7 @@ export const speciesDefinitions = {
     diet: [forage.leaves, forage.carrion, forage.grass],
     weapons: 1,
     armor: 1,
+    fecundity: 1,
     size: sizes[sizeNames.fine],
   },
   'fire-ant': {
@@ -61,12 +65,13 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.fruit],
     speed: 2,
     flying: true,
+    fecundity: 1,
     size: sizes[sizeNames.tiny],
   },
   slug: {
     name: 'slug',
     diet: [forage.leaves, forage.carrion, forage.fruit],
-    fecundity: 2.5,
+    fecundity: 1,
     speed: 1,
     size: sizes[sizeNames.tiny],
   },
@@ -76,14 +81,14 @@ export const speciesDefinitions = {
     speed: 4,
     weapons: 5,
     armor: 2,
-    fat: 80,
+    fat: 200,
     size: sizes[sizeNames.huge],
   },
   bison: {
     name: 'bison',
     diet: [forage.grass],
     armor: 5,
-    fat: 30,
+    fat: 50,
     size: sizes[sizeNames.huge],
   },
   fish: {
@@ -97,6 +102,7 @@ export const speciesDefinitions = {
   yeast: {
     name: 'yeast',
     diet: [forage.carrion, forage.seeds],
+    fecundity: 1,
     size: sizes[sizeNames.micro],
   },
   termite: {
@@ -111,7 +117,7 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 2,
     armor: 2,
-    fat: 5,
+    fat: 15,
     size: sizes[sizeNames.small],
   },
   minnow: {
@@ -127,6 +133,7 @@ export const speciesDefinitions = {
     diet: [forage.algae, forage.carrion],
     speed: 1,
     armor: 2,
+    fat: 1,
     size: sizes[sizeNames.tiny],
   },
   caribou: {
@@ -139,8 +146,8 @@ export const speciesDefinitions = {
   locust: {
     name: 'locust',
     diet: [forage.seeds],
-    fecundity: 2,
     flying: true,
+    fecundity: 2,
     size: sizes[sizeNames.tiny],
   },
   mantis: {
@@ -148,6 +155,7 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.grass],
     speed: 1,
     weapons: 2,
+    fat: 2,
     size: between(sizes[sizeNames.fine], sizes[sizeNames.tiny]),
   },
   hawk: {
@@ -166,6 +174,7 @@ export const speciesDefinitions = {
     speed: 2,
     reach: true, // Webs allow spiders to attack flying prey
     venom: 'venom',
+    fat: 1,
     size: between(sizes[sizeNames.fine], sizes[sizeNames.tiny]),
   },
   'mini-giraffe': {
@@ -173,6 +182,7 @@ export const speciesDefinitions = {
     diet: [forage.leaves],
     armor: 2,
     fat: 5,
+    fecundity: 1,
     size: sizes[sizeNames.medium],
   },
   'mega-giraffe': {
@@ -185,8 +195,9 @@ export const speciesDefinitions = {
   ironshroom: {
     name: 'ironshroom',
     diet: [forage.carrion, forage.leaves],
-    size: sizes[sizeNames.small],
     armor: 4,
+    fecundity: 2,
+    size: sizes[sizeNames.small],
   },
   stonelicker: {
     name: 'stonelicker',
@@ -197,6 +208,7 @@ export const speciesDefinitions = {
     name: 'biting-termite',
     diet: [forage.wood, forage.carrion],
     weapons: 1,
+    fat: 4,
     size: sizes[sizeNames.tiny],
   },
   'leafcutter-beetle': {
@@ -221,12 +233,24 @@ export const speciesDefinitions = {
     speed: 2,
     weapons: 4,
     armor: 2,
-    fat: 10,
+    fat: 30,
     size: sizes[sizeNames.medium],
   },
   deathcap: {
     name: 'deathcap',
-    diet: [forage.wood, forage.leaves],
+    diet: [forage.leaves],
+    venom: 'venom',
+    size: sizes[sizeNames.small],
+  },
+  'funeral-bell-mushroom': {
+    name: 'funeral-bell-mushroom',
+    diet: [forage.wood],
+    venom: 'venom',
+    size: sizes[sizeNames.small],
+  },
+  'sickener-mushroom': {
+    name: 'sickener-mushroom',
+    diet: [forage.lichen],
     venom: 'venom',
     size: sizes[sizeNames.small],
   },
@@ -236,6 +260,7 @@ export const speciesDefinitions = {
     speed: 3,
     weapons: 1,
     venom: 'venom',
+    fat: 2,
     size: sizes[sizeNames.tiny],
   },
   bird: {
@@ -243,12 +268,14 @@ export const speciesDefinitions = {
     diet: [forage.fruit, forage.seeds],
     speed: 3,
     flying: true,
+    fecundity: 2,
     size: sizes[sizeNames.small],
   },
   gnat: {
     name: 'gnat',
     diet: [forage.fruit],
     flying: true,
+    fecundity: 1,
     size: sizes[sizeNames.fine],
   },
   frog: {
@@ -258,6 +285,7 @@ export const speciesDefinitions = {
     weapons: 2,
     reach: true, // Tongue allows frogs to catch flying prey
     multikill: 2,
+    fat: 2,
     size: sizes[sizeNames.tiny],
   },
   rat: {
@@ -265,7 +293,8 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.seeds],
     speed: 2,
     weapons: 1,
-    fat: 1,
+    fecundity: 1,
+    fat: 2,
     size: sizes[sizeNames.tiny],
   },
   caterpillar: {
@@ -294,15 +323,13 @@ export const speciesDefinitions = {
   'lichen-mite': {
     name: 'lichen-mite',
     diet: [forage.lichen],
-    armor: 1,
-    venom: 'venom',
-    size: sizes[sizeNames.small],
+    size: sizes[sizeNames.fine],
   },
   'winged-springtail': {
     name: 'winged-springtail',
     diet: [forage.lichen],
-    venom: 'venom',
     flying: true,
+    speed: 1,
     size: sizes[sizeNames.tiny],
   },
   plankton: {

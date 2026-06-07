@@ -72,3 +72,28 @@ export function ensureArray(maybeArray) {
   if (Array.isArray(maybeArray)) return [...maybeArray];
   return [maybeArray];
 }
+
+/**
+ * @template T
+ * @param {Iterable<T>} arr 
+ * @param {(element: T) => number | undefined} mapFn 
+ * @returns {T | undefined} The element with the maximum mapped value, excluding any non-numeric mapped values, or undefined if the iterable contains no valid mappings.
+ */
+export function maxBy(arr, mapFn) {
+  if (!arr || arr.length === 0) return undefined;
+
+  let maxElement;
+  let maxValue;
+
+  for (const element of arr) {
+    const value = mapFn(element);
+    if (!isNumber(value)) continue;
+
+    if (maxValue === undefined || value > maxValue) {
+      maxValue = value;
+      maxElement = element;
+    }
+  }
+
+  return maxElement;
+}
