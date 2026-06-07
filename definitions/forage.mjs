@@ -22,24 +22,24 @@ export const forageDefinitions = {
   [forage.grass]: {
     energy: 5,
     water: 4,
-    adaptationCost: 4,
+    adaptationCost: 3,
   },
   [forage.leaves]: {
     energy: 4,
     water: 4,
-    adaptationCost: 4,
+    adaptationCost: 3.5,
   },
   [forage.algae]: {
-    energy: 3,
+    energy: 3.5,
     water: 1,   // TODO: water is inverted if no 'salt' water drinking adaptation
     adaptationCost: 4,
   },
   [forage.wood]: {
-    energy: 3,
+    energy: 3.5,
     adaptationCost: 8,
   },
   [forage.lichen]: {
-    energy: 2 + 2/3,
+    energy: 3,
     adaptationCost: 5,
   },
 };

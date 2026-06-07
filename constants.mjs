@@ -22,6 +22,11 @@ const Constants = {
   birth: {
     baseRateCap: 0.1, // 10% of population per day, before size & fecundity adjustments
   },
+  adaptation: {
+    synergies: {
+      omnivory: 0.4, // Reduced cost for additional diet adaptations besides the most-expensive-taken. 0.4 = -40%, AKA 60% cost.
+    },
+  },
 };
 
 export default Constants;

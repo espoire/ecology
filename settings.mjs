@@ -3,6 +3,7 @@ import { ensureArray } from "./util/array.mjs";
 const Settings = {
   log: {
     energyDeficits: false,
+    energyEconomicallyUnderwaterSpecies: true,
     deaths: false,
     extinctions: 'terse', // 'verbose' | 'terse' | false
     initialPopulations: true,

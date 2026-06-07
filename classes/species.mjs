@@ -80,8 +80,8 @@ export default class Species {
     const cost = ((forageType) => forageDefinitions[forageType].adaptationCost);
     const firstDietCost = cost(firstDiet) * this.#size;
     
-    const additionalDietDiscount = 0.75;
-    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.99; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
+    const additionalDietDiscount = Constants.adaptation.synergies.omnivory;
+    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.98; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
     const additionalDietBaseCost = sum(restDiets.map(cost));
     const additionalDietCosts = additionalDietBaseCost * additionalDietDiscount * (fractionOfAdditionalDietCostWhichScalesWithSize * this.#size + (1 - fractionOfAdditionalDietCostWhichScalesWithSize));
     const dietCosts = firstDietCost + additionalDietCosts;
@@ -174,9 +174,7 @@ export default class Species {
       console.log(`  Saturation percentage of upkeep: ${formatSmallNumber(saturationPercentageOfUpkeep)}%`);
 
       const appetitePerMember = this.#appetite;
-      let foodEnergyYields = this.#diet.map(forageType => ({ type: forageType, energy: this.getEnergyYield(forageType) }));
-      if (this.canBePredator().able) foodEnergyYields.push({ type: 'meat', energy: meat.energy }); // If the species can eat carrion, it can also get energy from meat, which is more energy-dense than most forage
-      const bestFoodByEnergyYield = maxBy(foodEnergyYields, f => f.energy);
+      const bestFoodByEnergyYield = this.getBestFoodByEnergyYield();
       const energyPerDayPerMemberAtSaturation = appetitePerMember * bestFoodByEnergyYield.energy;
       const surplusPerMemberAtSaturation = energyPerDayPerMemberAtSaturation - dailyUpkeep;
 
@@ -211,6 +209,36 @@ export default class Species {
       }
       console.log();
     }
+
+    if (Settings.log.energyEconomicallyUnderwaterSpecies) {
+      const dailyUpkeep = this.getEnergyUpkeep();
+      const appetitePerMember = this.#appetite;
+      const bestFoodByEnergyYield = this.getBestFoodByEnergyYield();
+      const energyPerDayPerMemberAtSaturation = appetitePerMember * bestFoodByEnergyYield.energy;
+      const surplusPerMemberAtSaturation = energyPerDayPerMemberAtSaturation - dailyUpkeep;
+
+      if (surplusPerMemberAtSaturation < 0) {
+        console.log();
+        console.warn(`Species ${this} is economically underwater.`);
+        console.warn(`  Appetite: ${formatSmallNumber(appetitePerMember)} food/day`);
+        console.warn(`  Best food source: ${bestFoodByEnergyYield.type} (${formatSmallNumber(bestFoodByEnergyYield.energy)} E/food)`);
+        console.warn(`  Power income at appetite saturation: ${formatSmallNumber(energyPerDayPerMemberAtSaturation)} P`);
+        console.warn(`  Upkeep: ${formatSmallNumber(dailyUpkeep)} P`);
+        console.warn(`  Power deficit despite saturation: ${formatSmallNumber(-surplusPerMemberAtSaturation)} P`);
+
+        const percentage = energyPerDayPerMemberAtSaturation / dailyUpkeep * 100;
+        console.warn(`  Can only afford ${formatSmallNumber(percentage)}% of upkeep costs, under ideal conditions.`);
+      }
+    }
+  }
+
+  /**
+   * @returns {{ type: 'string', energy: number }}
+   */
+  getBestFoodByEnergyYield() {
+    let foodEnergyYields = this.#diet.map(forageType => ({ type: forageType, energy: this.getEnergyYield(forageType) }));
+    if (this.canBePredator().able) foodEnergyYields.push({ type: 'meat', energy: meat.energy }); // If the species can eat carrion, it can also get energy from meat, which is more energy-dense than most forage
+    return maxBy(foodEnergyYields, f => f.energy);
   }
 
   getInitialPopulation() {
