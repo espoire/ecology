@@ -13,4 +13,5 @@ export const forage = {
   lichen: 'lichen',
   wood: 'wood',
   carrion: 'carrion',
+  dung: 'dung',
 };

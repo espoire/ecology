@@ -1,5 +1,7 @@
 import FoodChain from "./classes/food-chain.mjs";
 import Constants from "./constants.mjs";
+import { forageDefinitions } from "./definitions/forages.mjs";
+import meat from "./definitions/meat.mjs";
 import { forage, water } from "./definitions/names.mjs";
 import Settings from "./settings.mjs";
 import { sumMapValues } from "./util/map.mjs";
@@ -137,15 +139,22 @@ function simulateDay(day, env, pops, foodChain) {
   //   Record appetite satisfaction
   //   Record meat wasted from oversatisfied individual-appetites
   let totalMeatWasted = 0;
+  let totalDungSpawn = 0;
   const populationStatuses = [];
   for (let i = 0; i < pops.length; i++) {
     const pop = pops[i];
     const kills = actualKillsByPredatorPopulation[i];
     if (!kills) continue;
 
-    const { energyGained, waterGained, appetiteSatisfied, meatWasted } = pop.processPredation(kills);
+    const { energyGained, waterGained, appetiteSatisfied, meatEaten, meatWasted } = pop.processPredation(kills);
     populationStatuses[i] = { energyGained, waterGained, appetiteSatisfied };
     totalMeatWasted += meatWasted;
+
+    const dung = (meatEaten * (meat.dung ?? 0)) ?? 0;
+    totalDungSpawn += dung;
+    if (Settings.log.dungProduction && dung > 0) {
+      console.log(`Day ${day + 1}: ${pop.species} produced ${formatLargeNumber(dung)} dung from eating ${formatLargeNumber(meatEaten)} meat`);
+    }
   }
 
   // Produce carrion from total meat waste
@@ -202,18 +211,27 @@ function simulateDay(day, env, pops, foodChain) {
   const totalConsumption = {};
   for (let i = 0; i < pops.length; i++) {
     const pop = pops[i];
-    if (pop.count === 0) {
+    if (!pop.isPresent(day)) {
       actualConsumptionByPopulation.push({});
       continue;
     }
 
     const demand = demands[i];
     const consumption = {};
+    let foodConsumed = 0;
     for (const food in satisfaction.food) {
-      if (satisfaction.food[food] > 0 && demand[food] > 0) {
-        const consumed = satisfaction.food[food] * demand[food];
-        consumption[food] = consumed;
-        totalConsumption[food] = (totalConsumption[food] ?? 0) + consumed;
+      const satisfied = satisfaction.food[food] ?? 0;
+      const demanded = demand[food] ?? 0;
+      if (satisfied <= 0 || demanded <= 0) continue;
+
+      const consumed = satisfied * demanded;
+      consumption[food] = consumed;
+      totalConsumption[food] = (totalConsumption[food] ?? 0) + consumed;
+      
+      const dung = consumed * (forageDefinitions[food].dung ?? 0);
+      totalDungSpawn += dung;
+      if (Settings.log.dungProduction && dung > 0) {
+        console.log(`Day ${day + 1}: produced ${formatLargeNumber(dung)} dung from eating ${formatLargeNumber(consumed)} ${food}`);
       }
     }
     actualConsumptionByPopulation.push(consumption);
@@ -249,6 +267,10 @@ function simulateDay(day, env, pops, foodChain) {
   }
 
   rotFoodSupply(env);
+
+  // Spawn dung after daily rot, so that dung produced today won't rot until tomorrow, giving it a chance to be eaten
+  env.food[forage.dung] += totalDungSpawn;
+  env.food[forage.dung] = Math.floor(env.food[forage.dung]);
 }
 
 /**
@@ -298,9 +320,10 @@ function spawnResources(day, environment, multiplier = 1) {
 }
 
 function rotFoodSupply(environment) {
-  mapObjectValues(environment.food, (_, amount) =>
-    Math.max(0, Math.floor(amount * 0.99)),
-  { inPlace: true });
+  mapObjectValues(environment.food, (foodType, amount) => {
+    const rotRate = 1 - 0.01 * (forageDefinitions[foodType].rotSpeed ?? 1);
+    return Math.max(0, Math.floor(amount * rotRate));
+  }, { inPlace: true });
 }
 
 /**
@@ -352,6 +375,12 @@ function logSimEnd(env, pops, days) {
   const sortedPopulations = pops.sort(sortByLivingThenByTotalPower);
   const popsToLog = Settings.log.extinctPopulationsInFinalRankings ? sortedPopulations : sortedPopulations.filter(pop => pop.count > 0);
   for (const pop of popsToLog) pop.logFinalState('- ');
+
+  const numberOfExtinct = pops.filter(pop => pop.count <= 0).length;
+  const numberOfLiving = pops.length - numberOfExtinct;
+  const percentExtinct = formatSmallNumber(numberOfExtinct / pops.length * 100);
+  console.log();
+  console.log(`${numberOfLiving} living populations, ${numberOfExtinct} extinct populations (${percentExtinct}%).`);
 }
 
 function sortByLivingThenByTotalPower(a, b) {

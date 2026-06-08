@@ -12,6 +12,7 @@ const Settings = {
     foodChain: false,
     predation: false,
     omittedBiomeClimate: true,
+    dungProduction: false,
     
     species: {
       // Add species names to log detailed calculations for that species whenever it's initialized or re-initialized

@@ -278,7 +278,7 @@ export default class Population {
 
   /**
    * @param {Map<Population, number>} kills
-   * @return {{ energyGained: number, waterGained: number, appetiteSatisfied: number, meatWasted: number }}
+   * @return {{ energyGained: number, waterGained: number, appetiteSatisfied: number, meatEaten: number, meatWasted: number }}
    */
   processPredation(kills) {
     let remainingAppetite = this.getTotalAppetite();
@@ -297,12 +297,12 @@ export default class Population {
     const energyGained = meatEaten * meat.energy;
     const waterGained = meatEaten * meat.water;
     const appetiteSatisfied = meatEaten;
-    return { energyGained, waterGained, appetiteSatisfied, meatWasted };
+    return { energyGained, waterGained, appetiteSatisfied, meatEaten, meatWasted };
   }
 
   /**
    * @param {number} deaths
-   * @param {{ energyGained: number, waterGained: number, appetiteSatisfied: number, meatWasted: number }?} populationStatus
+   * @param {{ appetiteSatisfied: number }?} populationStatus
    */
   applyPredationDeaths(deaths, populationStatus) {
     const deathRatio = deaths / this.#count;

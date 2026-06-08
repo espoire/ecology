@@ -351,6 +351,13 @@ export const speciesDefinitions = {
     fat: 1,
     size: sizes[sizeNames.tiny],
   },
+  'dung-beetle': {
+    name: 'dung-beetle',
+    diet: [forage.dung],
+    size: sizes[sizeNames.tiny],
+    speed: 1,
+    armor: 1,
+  },
 };
 
 export default speciesDefinitions;
