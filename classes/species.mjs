@@ -130,7 +130,9 @@ export default class Species {
 
     const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost + multikillCost;
     const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
-    this.#power = total;
+
+    const sessileBonus = this.#speed === 0 ? 0.95 : 1; // Sessile animals are cheaper to maintain since they don't have to spend energy on movement, so they get a discount on their effective power level
+    this.#power = total * Constants.energy.upkeepMultiplier * sessileBonus;
 
     const aliases = [this.#name, 'all', '*'];
     if (isNaN(this.#power) || aliases.some(alias => Settings.log.species.power.includes(alias))) {
@@ -234,6 +236,15 @@ export default class Species {
         console.warn(`  Can only afford ${formatSmallNumber(percentage)}% of upkeep costs, under ideal conditions.`);
       }
     }
+
+    if (Settings.log.subviableStartingPopulations) {
+      const minimumViablePopulation = this.getMinimumViablePopulation();
+      const initialPopulation = this.getInitialPopulation().population;
+
+      if (initialPopulation < minimumViablePopulation) {
+        console.warn(`Species ${this} initial population (${initialPopulation}) is below the minimum viable population (${minimumViablePopulation}).`);
+      }
+    }
   }
 
   /**
@@ -243,6 +254,18 @@ export default class Species {
     const appetitePerMember = this.#appetite;
     const bestFoodByEnergyYield = this.getBestFoodByEnergyYield();
     return appetitePerMember * bestFoodByEnergyYield.energy;
+  }
+
+  getMinimumViablePopulation() {
+    const maxIncome = this.getMaximalEnergyIncome();
+    const upkeep = this.getEnergyUpkeep();
+    const fatCapacity = this.getFatCapacityPerMember();
+    const maxEnergyPerMember = maxIncome - upkeep + fatCapacity;
+
+    const birthCost = this.getBirthEnergyCost();
+
+    const minimumPopulation = Math.ceil(birthCost / maxEnergyPerMember);
+    return minimumPopulation;
   }
 
   /**
@@ -260,6 +283,11 @@ export default class Species {
 
     let population = Math.floor(energyBudget / this.getBirthEnergyCost());
     if (population < 2) population = 2; // Minimum population of 2 to allow for reproduction
+
+    const minimumViablePopulation = this.getMinimumViablePopulation();
+    const ratio = population / minimumViablePopulation;
+    // If initial population is below minimum viable population but within 50% of it, round up to minimum viable population to avoid certain death. This is justified by the fact that the initial population is somewhat arbitrary and not the result of a preceding population growth process that would naturally weed out subviable populations.
+    if (population < minimumViablePopulation && ratio >= 0.5) population = minimumViablePopulation;
 
     const cost = population * this.getBirthEnergyCost();
     let leftoverEnergy = energyBudget - cost;
@@ -300,11 +328,11 @@ export default class Species {
   }
 
   getBirthEnergyCost() {
-    return this.#power;
+    return this.getEnergyUpkeep() * Constants.energy.birthCostDays;
   }
 
   getEnergyUpkeep() {
-    return this.#power * Constants.energy.dailyUpkeepFactor;
+    return this.#power;
   }
 
   getDeathEnergy() {

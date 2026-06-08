@@ -20,6 +20,7 @@ import fs from 'node:fs';
  */
 export function runSim(env, pops, days = 10) {
   const foodChain = new FoodChain(pops.map(pop => pop.species));
+  spawnInitialResources(env);
 
   _initTimeSeriesLog(env, pops);
   logSimStart(env, pops);
@@ -261,6 +262,14 @@ function simulateDay(day, env, pops, foodChain) {
     if (deaths > 0) deathsByPopulation[i] = deaths;
   }
 
+  // Roll extra deaths for subviable populations
+  for (let i = 0; i < pops.length; i++) {
+    const pop = pops[i];
+    if (!pop.isPresent(day)) continue;
+    const deaths = pop.rollSubviableDeaths(day);
+    deathsByPopulation[i] = (deathsByPopulation[i] ?? 0) + deaths;
+  }
+
   // Add to carrion per deaths
   for (const i in deathsByPopulation) {
     spawnCarrionForStarvationDeaths(env, pops[i].species, deathsByPopulation[i]);
@@ -283,6 +292,17 @@ function spawnCarrionForStarvationDeaths(env, species, deaths) {
 
   const carrionAdded = deaths * species.getCarrionPerStarvationDeath();
   env.food[forage.carrion] += carrionAdded;
+}
+
+/**
+ * Spawns a fairly representative mix of the year-round resources for this environment.
+ * @param {object} env
+ */
+function spawnInitialResources(env, steps = 16) {
+  for (let i = 0; i < steps; i++) {
+    const day = Math.floor(i * Constants.seasons.yearLength / steps);
+    spawnResources(day, env);
+  }
 }
 
 let forageSpawnsToday = null;
@@ -372,7 +392,7 @@ function logSimEnd(env, pops, days) {
 
   console.log();
   console.log('Final populations:');
-  const sortedPopulations = pops.sort(sortByLivingThenByTotalPower);
+  const sortedPopulations = pops.sort(sortByLivingThenByTotalEnergy);
   const popsToLog = Settings.log.extinctPopulationsInFinalRankings ? sortedPopulations : sortedPopulations.filter(pop => pop.count > 0);
   for (const pop of popsToLog) pop.logFinalState('- ');
 
@@ -383,13 +403,13 @@ function logSimEnd(env, pops, days) {
   console.log(`${numberOfLiving} living populations, ${numberOfExtinct} extinct populations (${percentExtinct}%).`);
 }
 
-function sortByLivingThenByTotalPower(a, b) {
+function sortByLivingThenByTotalEnergy(a, b) {
   // Living populations come first
   if (a.count > 0 && b.count === 0) return -1;
   if (a.count === 0 && b.count > 0) return 1;
 
-  // Then by total power, highest first
-  return b.getTotalPower() - a.getTotalPower();
+  // Then by total energy, highest first
+  return b.getTotalEnergy() - a.getTotalEnergy();
 }
 
 function logForageStocks(env, prefix = '') {
@@ -471,6 +491,7 @@ function _initTimeSeriesLog(env, pops) {
  */
 function _updateTimeSeriesLog(day, env, pops) {
   if (suppressTimeSeriesLog) return;
+  if (day % Settings.export.dayInterval !== 0) return;
 
   const row = [];
 
@@ -501,7 +522,7 @@ function _updateTimeSeriesLog(day, env, pops) {
       if (Settings.export.species === 'count') {
         value = pop.count + pop.getAvailableFatEnergy() / pop.species.getBirthEnergyCost(); // Count includes available fat energy converted to population count equivalent, to give a sense of total survivability of the population including fat stores
       } else if (Settings.export.species === 'total-energy') {
-        value = pop.getTotalPower() + pop.getAvailableFatEnergy();
+        value = pop.getTotalEnergy() + pop.getAvailableFatEnergy();
       }
 
       if (Settings.export.logScale) {

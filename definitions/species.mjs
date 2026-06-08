@@ -20,7 +20,7 @@ export const speciesDefinitions = {
     diet: [forage.grass, forage.leaves, forage.fruit, forage.lichen],
     speed: 4,
     armor: 2,
-    fat: 2,
+    fat: 5,
     size: sizes[sizeNames.big],
   },
   mushroom: {
@@ -140,7 +140,7 @@ export const speciesDefinitions = {
     name: 'caribou',
     diet: [forage.lichen],
     armor: 6,
-    fat: 4,
+    fat: 5,
     size: sizes[sizeNames.big],
   },
   locust: {
@@ -163,7 +163,7 @@ export const speciesDefinitions = {
     diet: [forage.carrion, forage.seeds],
     speed: 6,
     weapons: 4,
-    fat: 2,
+    fat: 3,
     flying: true,
     size: sizes[sizeNames.small],
   },
@@ -246,12 +246,14 @@ export const speciesDefinitions = {
     name: 'funeral-bell-mushroom',
     diet: [forage.wood],
     venom: 'venom',
+    fat: 1,
     size: sizes[sizeNames.small],
   },
   'sickener-mushroom': {
     name: 'sickener-mushroom',
     diet: [forage.lichen],
     venom: 'venom',
+    fat: 1,
     size: sizes[sizeNames.small],
   },
   rattlesnake: {
@@ -307,6 +309,7 @@ export const speciesDefinitions = {
     name: 'toxic-nudibranch',
     diet: [forage.lichen],
     venom: 'venom',
+    fat: 1,
     size: sizes[sizeNames.small],
   },
   'dire-honey-badger': {
@@ -355,7 +358,6 @@ export const speciesDefinitions = {
     name: 'dung-beetle',
     diet: [forage.dung],
     size: sizes[sizeNames.tiny],
-    speed: 1,
     armor: 1,
   },
 };

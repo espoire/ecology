@@ -3,7 +3,6 @@ import { ensureArray } from "./util/array.mjs";
 const Settings = {
   log: {
     energyDeficits: false,
-    energyEconomicallyUnderwaterSpecies: true,
     deaths: false,
     extinctions: 'terse', // 'verbose' | 'terse' | false
     initialPopulations: true,
@@ -13,6 +12,9 @@ const Settings = {
     predation: false,
     omittedBiomeClimate: true,
     dungProduction: false,
+
+    subviableStartingPopulations: true, // Log whenever a species starts with a population below the minimum needed to sustain itself (which may indicate an error in the species definition or initialization process)
+    energyEconomicallyUnderwaterSpecies: true,
     
     species: {
       // Add species names to log detailed calculations for that species whenever it's initialized or re-initialized
@@ -24,6 +26,7 @@ const Settings = {
   },
   export: {
     disable: false,
+    dayInterval: 2, // Exported data will have one entry per this many days
     includeDayNumber: false,
     species: 'total-energy', // 'count' | 'total-energy' | false
     forage: false, // boolean

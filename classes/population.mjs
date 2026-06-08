@@ -8,7 +8,7 @@ import Settings from '../settings.mjs';
 import { mapArrayValuesToMap, mapMapValues, normalizeMap } from '../util/map.mjs';
 import { clamp, formatLargeNumber, formatSmallNumber } from '../util/number.mjs';
 import { filterObject, mapArrayValuesToObject, mapObjectValues, normalizeObject, sumObjectValues } from '../util/object.mjs';
-import { bellRandom } from '../util/random.mjs';
+import { bellRandom, randBool } from '../util/random.mjs';
 
 /**
  * Manages a population of a single species within the simulation.
@@ -74,8 +74,8 @@ export default class Population {
     return this.getTotalFatEnergyCapacity() - this.getAvailableFatEnergy()
   }
 
-  getTotalPower() {
-    return this.#count * this.#species.power;
+  getTotalEnergy() {
+    return this.#count * this.#species.getBirthEnergyCost();
   }
 
   getTotalAppetite() {
@@ -453,6 +453,29 @@ export default class Population {
     return { births, energyStoredAsFat: remainingEnergySurplus };
   }
 
+  rollSubviableDeaths(day) {
+    const viability = this.#count / this.#species.getMinimumViablePopulation();
+    if (viability >= 1) return 0; // Population is above minimum viable population, so no subviable deaths
+
+    const chance = Constants.death.subviableChance * (1 - viability); // Chance scales linearly from max chance at 0% viability, to 0 chance at 100% viability
+
+    let deaths = 0;
+    if (this.#count < this.#species.getMinimumViablePopulation() && randBool(chance)) {
+      deaths += 1;
+      deaths += Math.floor(this.#count * Constants.death.subviableDecay);
+    }
+
+    const ratio = deaths / this.#count;
+    this.#count -= deaths;
+    this.#fat *= (1 - ratio); // Reduce fat reserves proportional to population lost
+
+    if (this.#count <= 0 && Settings.log.extinctions) {
+      const mode = Settings.log.extinctions;
+      if (mode === 'verbose') this.logExtinction({}, {}, 0, 0, this.#count + deaths);
+      if (mode === 'terse') console.log(`- ${this.#species.name} went extinct on day ${day + 1} (subviable population)`);
+    }
+  }
+
 
 
 
@@ -460,7 +483,7 @@ export default class Population {
   // #region Logging
 
   logState(prefix = '') {
-    const powerText = `${formatSmallNumber(this.#species.power)} P, ${formatSmallNumber(this.#species.getEnergyUpkeep())} P upkeep`;
+    const powerText = `${formatSmallNumber(this.#species.power)} P`;
     const storageText = this.#species.canStoreFat() ? `, ${formatLargeNumber(this.#species.getFatCapacityPerMember())} E fat storage` : '';
     const fatPercent = this.getFatPercentage();
     const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(1)}% fat` : '';
@@ -477,7 +500,7 @@ export default class Population {
       const fatPercent = this.getFatPercentage();
       const fatText = fatPercent > 0 ? ` + ${fatPercent.toFixed(0)}% fat` : '';
       const countText = formatLargeNumber(this.#count);
-      console.log(`${prefix}${this.#species}: \t${countText}${fatText} \t- total ${formatLargeNumber(this.getTotalPower())} P`);
+      console.log(`${prefix}${this.#species}: \t${countText}${fatText} \t- total ${formatLargeNumber(this.getTotalEnergy())} E`);
     }
   }
 

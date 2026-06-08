@@ -16,11 +16,16 @@ const Constants = {
     cover: 100,
   },
   energy: {
-    dailyUpkeepFactor: 1/8, // Daily upkeep is this fraction of a species' birth cost, so a species with birthCost 16 would need to gain 2 energy per day to maintain its population
-    deathPowerDays: 4, // If a species falls this many days behind on energy upkeep, one member starves
+    upkeepMultiplier: 1/8,
+    birthCostDays: 16,
+    deathPowerDays: 10, // If a species falls this many days behind on energy upkeep, one member starves
   },
   birth: {
     baseRateCap: 0.1, // 10% of population per day, before size & fecundity adjustments
+  },
+  death: {
+    subviableChance: 0.3, // Max daily chance of death for populations below their minimum viable population
+    subviableDecay: 0.05, // When chance triggers, lose 1 + 5% of the population
   },
   adaptation: {
     synergies: {
