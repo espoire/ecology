@@ -1,5 +1,5 @@
 const Constants = {
-  sim: { days: 1000 },
+  sim: { days: 10 },
   predation: {
     maxSpeciesStartDelay: 20,
     efficiency: 0.75,
@@ -17,7 +17,10 @@ const Constants = {
     cover: 100,
   },
   energy: {
-    upkeepMultiplier: 1/8,
+    upkeep: {
+      base: 0.05, // Base energy upkeep per day, regardless of adaptations & size
+      multiplier: 1/8,
+    },
     birthCostDays: 16,
     deathPowerDays: 10, // If a species falls this many days behind on energy upkeep, one member starves
   },

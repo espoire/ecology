@@ -1,4 +1,5 @@
 import Constants from "../constants.mjs";
+import { adaptations } from "../definitions/adaptations.mjs";
 import { forageDefinitions } from "../definitions/forages.mjs";
 import meat from "../definitions/meat.mjs";
 import { forage } from "../definitions/names.mjs";
@@ -8,6 +9,7 @@ import { first, maxBy, sum, tail } from "../util/array.mjs";
 import { clamp, formatSmallNumber } from "../util/number.mjs";
 import { roundRandom } from "../util/random.mjs";
 import { sortBy } from "../util/sort.mjs";
+import AdaptationCost from "./AdaptationCost.mjs";
 
 export default class Species {
   /** @type {string} */ #name;
@@ -18,11 +20,15 @@ export default class Species {
   /** @type {number} */ #armor = 0;
   /** @type {number} */ #speed = 0;
   /** @type {number} */ #fat = 0;
+  /** @type {number} */ #keenSenses = 0;
+  /** @type {number} */ #crypsis = 0;
   /** @type {number} */ #multikill = 0;
   /** @type {boolean} */ #venom = false;
   /** @type {boolean} */ #antivenom = false;
   /** @type {boolean} */ #flying = false;
   /** @type {boolean} */ #reach = false;
+
+  /** @type {object} A summary object of all the adaptations set to non-cost-free values */ #adaptations;
 
   /** @type {number} */ #power;
   /** @type {number} */ #appetite;
@@ -34,20 +40,26 @@ export default class Species {
   get speed() { return this.#speed; }
 
   /**
-   * @param {string} name
-   * @param {string[]} diet Array of forage type names that this species can eat
-   * @param {number} fecundity
-   * @param {number} weapons
-   * @param {number} armor
-   * @param {number} speed
-   * @param {number} fat
-   * @param {number} size
-   * @param {'venom' | 'anti-venom' | null} venom
-   * @param {boolean} flying
-   * @param {boolean} reach
-   * @param {number} multikill
+   * @param {{
+   *   name: string,
+   *   diet: string[],   // Array of forage type names that this species can eat
+   *   fecundity?: number,
+   *   weapons?: number,
+   *   armor?: number,
+   *   speed?: number,
+   *   fat?: number,
+   *   size?: number,
+   *   venom?: 'venom' | 'anti-venom' | null,
+   *   flying?: boolean,
+   *   reach?: boolean,
+   *   multikill?: number,
+   *   keenSenses?: number,
+   *   crypsis?: number
+   * }} config
    */
-  constructor({ name, diet, fecundity = 0, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false, multikill = 1 }) {
+  constructor(config) {
+    const { name, diet, fecundity = 0, weapons = 0, armor = 0, speed = 0, fat = 0, size = 1, venom = null, flying = false, reach = false, multikill = 0, keenSenses = 0, crypsis = 0 } = config;
+
     this.#name = name;
     this.#diet = diet;
     this.#fecundity = fecundity;
@@ -59,6 +71,8 @@ export default class Species {
     this.#flying = flying;
     this.#reach = reach;
     this.#multikill = multikill;
+    this.#keenSenses = keenSenses;
+    this.#crypsis = crypsis;
 
     if (venom === 'venom') {
       this.#venom = true;
@@ -69,6 +83,8 @@ export default class Species {
 
     this.#appetite = this.#size;
 
+    this.#adaptations = this.getAllAdaptations(config);
+
     this.initialize();
   }
 
@@ -78,82 +94,44 @@ export default class Species {
   }
 
   initializePower() {
-    const baseCost = 0.05;
-    const sizeCost = this.#size ** 1.2 * 0.95;
+    const adapts = this.#adaptations;
+    const upkeep = AdaptationCost.calculateUpkeep(adapts);
+    this.#power = upkeep.total;
+    this.#explainUpkeepMaybe(upkeep);
+  }
 
-    const sortedDiet = this.#diet.sort(sortBy(f => forageDefinitions[f].adaptationCost, 'descending'));
-    const firstDiet = first(sortedDiet);
-    const restDiets = tail(-1, sortedDiet);
+  getAllAdaptations(config) {
+    const ret = {};
 
-    const cost = ((forageType) => forageDefinitions[forageType].adaptationCost);
-    const firstDietCost = cost(firstDiet) * this.#size;
-    
-    const additionalDietDiscount = Constants.adaptation.synergies.omnivory;
-    const fractionOfAdditionalDietCostWhichScalesWithSize = 0.98; // The rest is more of a fixed cost for having a more complex digestive system, which is less significant for larger animals
-    const additionalDietBaseCost = sum(restDiets.map(cost));
-    const additionalDietCosts = additionalDietBaseCost * additionalDietDiscount * (fractionOfAdditionalDietCostWhichScalesWithSize * this.#size + (1 - fractionOfAdditionalDietCostWhichScalesWithSize));
-    const dietCosts = firstDietCost + additionalDietCosts;
+    for (const key in adaptations) {
+      const value = config[key] ?? adaptations[key].default;
 
-    // This block noncausal, for debug logging only
-    const dietPresizeCost = cost(firstDiet) + additionalDietBaseCost * additionalDietDiscount;
-    
-    const baseFatCost = this.#fat > 0 ? 3 * this.#fat : 0;
-    const flyingFatCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay more for fat storage since it's extra weight to carry
-    const fatCost = baseFatCost * flyingFatCostMultiplier; // Fat cost does not scale with size
+      const costFreeValue = adaptations[key].free;
+      if (value !== costFreeValue) ret[key] = value;
+    }
 
-    const weaponsCost = this.#weapons * 3 * this.#size;
+    if (this.#diet.length > 0) ret.diet = structuredClone(this.#diet);
 
-    const fractionOfArmorCostWhichScalesWithSize = 0.7; // Armor is relatively cheaper for larger animals
-    const baseArmorCost = this.#armor * 2; // Armor is innately cheaper than weapons
-    const flyingArmorCostMultiplier = this.#flying ? 2.5 : 1; // Flying animals pay way more for armor
-    const armorCost = baseArmorCost * (fractionOfArmorCostWhichScalesWithSize * this.#size + (1 - fractionOfArmorCostWhichScalesWithSize)) * flyingArmorCostMultiplier;
-    
-    // Flying gives a synergy bonus to speed, making it cheaper
-    const flyingSpeedSynergy = this.#flying ? 0.9 : 1;
-    // 0.9 chosen so that flying-predator almost-but-not-quite breaks even with reach-predator
-    // So that flying-predator dominats at speed > 3, reach dominates at speed < 2, and they're debatable at speed = 2 or 3
-    // (Predator speed 2: flying is more costly than reach, but you also get the flying defensive benefit, so it's not a clear-cut choice either way.)
-    const speedCost = this.#speed * 3 * flyingSpeedSynergy * this.#size;
+    return ret;
+  }
 
-    const fecundityCost = this.#fecundity * this.#size;
-
-    const reachCost = (this.#reach ? 3 : 0) * this.#size; // Reach negates flying, and is cheaper than flying
-
-    const fractionOfVenomCostWhichScalesWithSize = 0.9; // Venom and resistance is somewhat cheaper for larger animals
-    const baseVenomCost = (this.#venom ? 6 : 0) + (this.#antivenom ? 5 : 0);
-    const venomCost = baseVenomCost * (fractionOfVenomCostWhichScalesWithSize * this.#size + (1 - fractionOfVenomCostWhichScalesWithSize));
-
-    const baseFlyingCost = this.#flying ? 4 : 0; // Flying is cheaper than an equivalent amount of speed
-    const flyingCost = baseFlyingCost * Math.max(this.#size, this.#size ** 2); // Flying scales dramatically with size
-    
-    const multikillCost = this.#multikill * 4 * this.#size; // [PH] TODO set cost
-
-    const abilitiesCost = weaponsCost + armorCost + speedCost + fecundityCost + reachCost + flyingCost + venomCost + multikillCost;
-    const total = baseCost + sizeCost + dietCosts + fatCost + abilitiesCost;
-
-    const sessileBonus = this.#speed === 0 ? 0.95 : 1; // Sessile animals are cheaper to maintain since they don't have to spend energy on movement, so they get a discount on their effective power level
-    this.#power = total * Constants.energy.upkeepMultiplier * sessileBonus;
-
+  /**
+   * @param {{
+   *   total: number,
+   *   subtotal: number,
+   *   costs: { type: string, cost: number, base: number, modifiers: { label: string, description?: string, multiplier?: number, flat?: number }[] }[],
+   *   modifiers: { label: string, description?: string, multiplier?: number, flat?: number }[]
+   * }} explanationObj
+   */
+  #explainUpkeepMaybe(explanationObj) {
     const aliases = [this.#name, 'all', '*'];
-    if (isNaN(this.#power) || aliases.some(alias => Settings.log.species.power.includes(alias))) {
+    if (isNaN(this.#power) || aliases.some(alias => Settings.log.species.upkeep.includes(alias))) {
+      /** @type {string[]} */
+      const explanation = AdaptationCost.explainUpkeep(explanationObj);
+      
       console.log();
-      console.log('species:', this.#name, 'power:', formatSmallNumber(this.#power), 'P');
-      console.log('  upkeep:', formatSmallNumber(this.getEnergyUpkeep()), ' P');
-      console.log('  birth cost:', formatSmallNumber(this.getBirthEnergyCost()), ' E');
-      console.log('  starvation:', formatSmallNumber(this.getDeathEnergy()), ' E');
-      console.log();
-      console.log('  base:', formatSmallNumber(baseCost), 'E');
-      console.log('  size:', `${this.#size}  =  ${formatSmallNumber(sizeCost)} E`);
-      console.log('  diet:', `${firstDiet} (${cost(firstDiet)})`, restDiets.length ? ` + ${restDiets.map(f => `${f} (${cost(f)} * ${additionalDietDiscount})`).join(' + ')}` : '' ,` =  ${formatSmallNumber(dietPresizeCost)} E  =>  ${formatSmallNumber(dietCosts)} E after size scaling`);
-      if (this.#armor) console.log('  armor:', `${this.#armor} armor`, ` =  ${formatSmallNumber(armorCost)} E`);
-      if (this.#fat) console.log('  fat:', `${this.#fat} fat`, ` =  ${formatSmallNumber(fatCost)} E`);
-      if (this.#weapons) console.log('  weapons:', `${this.#weapons} weapons`, ` =  ${formatSmallNumber(weaponsCost)} E`);
-      if (this.#speed) console.log('  speed:', `${this.#speed} speed`, ` =  ${formatSmallNumber(speedCost)} E`);
-      if (this.#fecundity) console.log('  fecundity:', `${this.#fecundity} fecundity`, ` =  ${formatSmallNumber(fecundityCost)} E`);
-      if (this.#reach) console.log('  reach: ', `${formatSmallNumber(reachCost)} E`);
-      if (this.#flying) console.log('  flying: ', `${formatSmallNumber(flyingCost)} E`);
-      if (this.#venom) console.log('  venom: ', `${formatSmallNumber(venomCost)} E`);
-      if (this.#multikill) console.log('  multikill: ', `${formatSmallNumber(multikillCost)} E`);
+      console.log(`Upkeep for species '${this.#name}'`);
+      for (const line of explanation) console.log(`  ${line}`);
       console.log();
     }
   }

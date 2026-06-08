@@ -1,6 +1,15 @@
 import { ensureArray } from "./util/array.mjs";
 
 const Settings = {
+  export: {
+    disable: true,
+    dayInterval: 1, // Exported data will have one entry per this many days
+    includeDayNumber: false,
+    species: 'total-energy', // 'count' | 'total-energy' | false
+    forage: false, // boolean
+    forageSpawns: false, // boolean
+    logScale: true, // boolean
+  },
   tuning: {
     resourceSpawnMultiplier: 1,
   },
@@ -23,18 +32,9 @@ const Settings = {
       // Add species names to log detailed calculations for that species whenever it's initialized or re-initialized
       // 'all' or '*' can be used to log all species
 
-      power: [],
+      upkeep: [],
       fecundity: [],
     },
-  },
-  export: {
-    disable: false,
-    dayInterval: 1, // Exported data will have one entry per this many days
-    includeDayNumber: false,
-    species: 'total-energy', // 'count' | 'total-energy' | false
-    forage: false, // boolean
-    forageSpawns: false, // boolean
-    logScale: true, // boolean
   },
 };
 

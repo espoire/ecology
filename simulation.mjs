@@ -8,7 +8,7 @@ import CsvExporter from "./util/CsvExporter.mjs";
 import { sumMapValues } from "./util/map.mjs";
 import { clamp, formatLargeNumber, formatSmallNumber } from "./util/number.mjs";
 import { filterObject, mapObjectValues, normalizeObject } from "./util/object.mjs";
-import { bellRandom, randBool, roundRandom } from "./util/random.mjs";
+import { roundRandom } from "./util/random.mjs";
 
 /** @typedef {import("./classes/species.mjs").default} Species */
 /** @typedef {import("./classes/population.mjs").default} Population */
@@ -284,7 +284,7 @@ function spawnCarrionForStarvationDeaths(env, species, deaths) {
 function spawnInitialResources(env, steps = 16) {
   for (let i = 0; i < steps; i++) {
     const day = Math.floor(i * Constants.seasons.yearLength / steps);
-    env.spawnResources(day);
+    env.spawnDailyForage(day);
   }
 }
 

@@ -2,8 +2,9 @@ import Constants from "../constants.mjs";
 import { forageDefinitions } from "../definitions/forages.mjs";
 import { forage, water } from "../definitions/names.mjs";
 import Settings from "../settings.mjs";
-import { formatLargeNumber } from "../util/number.mjs";
+import { clamp, formatLargeNumber } from "../util/number.mjs";
 import { mapObjectValues } from "../util/object.mjs";
+import { bellRandom } from "../util/random.mjs";
 import Biome from "./biome.mjs";
 
 function rollSpawnRandomness() {

@@ -1,3 +1,5 @@
+import { isNumber } from "./util.mjs";
+
 export const TAU = 2 * Math.PI;
 
 /** Large number formatter.
@@ -37,6 +39,7 @@ export function formatLargeNumber(num, decimalPlaces = 1) {
  * @return {string}
  */
 export function formatSmallNumber(num, sigfigs = 2, trimTrailingZeros = true) {
+  if (!isNumber(num)) return num;
   if (num === 0) return '0';
 
   const absNum = Math.abs(num);
