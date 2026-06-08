@@ -1,4 +1,5 @@
 const Constants = {
+  sim: { days: 1000 },
   predation: {
     maxSpeciesStartDelay: 20,
     efficiency: 0.75,
@@ -39,7 +40,7 @@ const Constants = {
     yearLength: 360, // Days per year, which determines how long seasons last
   },
   forage: {
-    spawnVariance: 0.05, // Variance for daily forage spawn multiplier. Higher means more extreme good and bad days.
+    spawnVariance: 0.00, // Variance for daily forage spawn multiplier. Higher means more extreme good and bad days.
   },
 };
 

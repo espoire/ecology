@@ -1,5 +1,4 @@
 TODO
-Adjust num days of starvation per expected death to ~10-20, and rebalance related parameter: birth energy days
 Move more relevant logic into the Biome and Climate classes.
 Alter predation: redesign hunt failure rate.
   Add new hunting bid soft cap is preyCount / sucessRate.
@@ -22,9 +21,6 @@ Add aquatic/terrestrial/amphibious adaptations, and segment predator web thereby
   Terrestrial: +1 speed for predator/prey calcs
   Amphibious: -1 waterEfficiency
   Aquatic: -10% Upkeep
-Refactor species #power back to being the daily upkeep
-Predation
-  Wasted meat drops as meat first, degrades to carrion end-of-day
 Multi-biome systems with emigration
   Mobile species may wander between active biomes, based on biome adjacency graph and species' mobility.
   Probability of wander per member per day = speed^2 / base_rate

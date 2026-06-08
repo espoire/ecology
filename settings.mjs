@@ -26,7 +26,7 @@ const Settings = {
   },
   export: {
     disable: false,
-    dayInterval: 2, // Exported data will have one entry per this many days
+    dayInterval: 1, // Exported data will have one entry per this many days
     includeDayNumber: false,
     species: 'total-energy', // 'count' | 'total-energy' | false
     forage: false, // boolean
