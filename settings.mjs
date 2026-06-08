@@ -1,6 +1,9 @@
 import { ensureArray } from "./util/array.mjs";
 
 const Settings = {
+  tuning: {
+    resourceSpawnMultiplier: 1,
+  },
   log: {
     energyDeficits: false,
     deaths: false,

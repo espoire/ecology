@@ -28,4 +28,8 @@ export default class Biome {
     this.#forage = forage;
     this.#cover = cover;
   }
+
+  getModifiedForageSpawn(day) {
+    return this.climate.getModifiedForageSpawn(day, this.forage);
+  }
 }

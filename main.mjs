@@ -11,6 +11,6 @@ import Constants from "./constants.mjs";
 
 const species = Object.values(speciesDefinitions).map(def => new Species(def));
 const population = species.map(s => new Population(s));
-const environment = Environment.generate(biome);
+const environment = new Environment(biome);
 
 runSim(environment, population, Constants.sim.days);

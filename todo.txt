@@ -1,5 +1,4 @@
 TODO
-Move more relevant logic into the Biome and Climate classes.
 Alter predation: redesign hunt failure rate.
   Add new hunting bid soft cap is preyCount / sucessRate.
     No unallocated bids: if all prey options saturate, allocate the remaining bids proportionally (to original weights, NOT amount already allocated).
